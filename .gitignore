@@ -1,0 +1,12 @@
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.codex-remote-attachments/
+.streamlit/secrets.toml
+.env
+.venv/
+venv/
+env/
+*.log
+.DS_Store
+Thumbs.db
