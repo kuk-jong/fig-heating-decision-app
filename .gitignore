@@ -7,7 +7,9 @@ __pycache__/
 .venv/
 venv/
 env/
+.tools/
 *.log
 *.zip
+*.msi
 .DS_Store
 Thumbs.db
