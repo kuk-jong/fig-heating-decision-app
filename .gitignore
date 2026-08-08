@@ -8,5 +8,6 @@ __pycache__/
 venv/
 env/
 *.log
+*.zip
 .DS_Store
 Thumbs.db
