@@ -62,6 +62,23 @@ SIDE_WING_LEVELS = {
     "양쪽 방풍벽+보강 (0.90)": 0.90,
 }
 
+DEFAULT_GREENHOUSE = {
+    "span_count": 3,
+    "gh_width": 8.0,
+    "gh_length": 42.0,
+    "gh_side_h": 2.5,
+    "gh_ridge_h": 4.0,
+}
+
+BASE_INVESTMENT_AREA_PYEONG = 300.0
+BASE_INVESTMENT_AREA_M2 = BASE_INVESTMENT_AREA_PYEONG * 3.3
+BASE_INVESTMENT_10K_WON = {
+    "double_vinyl_construction": 957,
+    "thermal_curtain_construction": 840,
+    "double_vinyl_material": 24,
+    "thermal_curtain_material": 248,
+}
+
 WINTER_START = "2025-11-01"
 WINTER_END = "2026-02-28"
 WINTER_MONTHS = {11, 12, 1, 2}
@@ -254,8 +271,13 @@ def annual_depreciation_won(
     cost_heater: float,
     cost_facility: float,
 ) -> int:
-    annual_cost_10k_won = cost_film / 3 + cost_curtain / 5 + cost_heater / 10 + cost_facility / 10
+    annual_cost_10k_won = cost_film / 10 + cost_curtain / 10 + cost_heater / 3 + cost_facility / 5
     return int(annual_cost_10k_won * 10000)
+
+
+def scaled_investment_defaults_10k(floor_area_m2: float) -> dict:
+    scale = max(floor_area_m2, 0.0) / BASE_INVESTMENT_AREA_M2
+    return {key: int(round(value * scale)) for key, value in BASE_INVESTMENT_10K_WON.items()}
 
 
 def simulated_min_temp(base_t: float, amp_t: float, day_idx: int, days_total: int) -> float:
@@ -495,15 +517,19 @@ def collect_inputs() -> tuple[bool, dict]:
             with st.expander("1. 온실 규격", expanded=False):
                 span_count = st.number_input(
                     "연동 수",
-                    value=1,
+                    value=DEFAULT_GREENHOUSE["span_count"],
                     step=1,
                     min_value=1,
                     help="1이면 단동, 2 이상이면 연동 온실로 자동 해석합니다.",
                 )
-                gh_width = st.number_input("폭 (m)", value=6.0, step=0.5, min_value=1.0)
-                gh_length = st.number_input("길이 (m)", value=50.0, step=1.0, min_value=1.0)
-                gh_side_h = st.number_input("측고 (m)", value=2.0, step=0.2, min_value=0.5)
-                gh_ridge_h = st.number_input("동고 (m)", value=3.5, step=0.2, min_value=0.5)
+                gh_width = st.number_input(
+                    "1동 기준 폭 (m)", value=DEFAULT_GREENHOUSE["gh_width"], step=0.5, min_value=1.0
+                )
+                gh_length = st.number_input("길이 (m)", value=DEFAULT_GREENHOUSE["gh_length"], step=1.0, min_value=1.0)
+                gh_side_h = st.number_input("측고 (m)", value=DEFAULT_GREENHOUSE["gh_side_h"], step=0.2, min_value=0.5)
+                gh_ridge_h = st.number_input(
+                    "동고(최고높이) (m)", value=DEFAULT_GREENHOUSE["gh_ridge_h"], step=0.2, min_value=0.5
+                )
                 side_wing_level = st.selectbox(
                     "방풍벽",
                     list(SIDE_WING_LEVELS.keys()),
@@ -548,10 +574,36 @@ def collect_inputs() -> tuple[bool, dict]:
                     st.info("겨울재배 미실시: 여름재배만 기준으로 연간 소득을 계산합니다.")
 
             with st.expander("3. 시설투자비(만원)", expanded=False):
-                cost_film = st.number_input("피복비닐 (3년)", value=200, step=50, min_value=0)
-                cost_curtain = st.number_input("보온커튼 (5년)", value=1500, step=100, min_value=0)
-                cost_heater = st.number_input("난방기 (10년)", value=500, step=100, min_value=0)
-                cost_facility = st.number_input("기타 설비 (10년)", value=300, step=100, min_value=0)
+                investment_defaults = scaled_investment_defaults_10k(floor_area_m2)
+                investment_scale = floor_area_m2 / BASE_INVESTMENT_AREA_M2
+                st.caption(
+                    f"첨부 엑셀 300평 기준 투자비를 현재 온실면적 {floor_area_m2 / 3.3:,.1f}평에 비례 환산합니다. "
+                    f"(환산계수 {investment_scale:.2f})"
+                )
+                cost_film = st.number_input(
+                    "이중비닐 공사비 (10년 상각)",
+                    value=investment_defaults["double_vinyl_construction"],
+                    step=10,
+                    min_value=0,
+                )
+                cost_curtain = st.number_input(
+                    "보온커튼 공사비 (10년 상각)",
+                    value=investment_defaults["thermal_curtain_construction"],
+                    step=10,
+                    min_value=0,
+                )
+                cost_heater = st.number_input(
+                    "이중비닐 피복재 (3년 상각)",
+                    value=investment_defaults["double_vinyl_material"],
+                    step=10,
+                    min_value=0,
+                )
+                cost_facility = st.number_input(
+                    "다겹보온커튼 자재비 (5년 상각)",
+                    value=investment_defaults["thermal_curtain_material"],
+                    step=10,
+                    min_value=0,
+                )
 
             with st.expander("4. 에너지 설정", expanded=False):
                 energy_source = st.selectbox("사용 연료", list(FUEL_SETTINGS.keys()))
@@ -799,7 +851,9 @@ def show_references() -> None:
 - 전기: 열당량 860kcal/kWh, 효율 98% 가정
 
 ### 4. 감가상각 기준
-- 피복재 3년, 보온커튼 5년, 난방기와 기타 설비 10년 정액법입니다.
+- 첨부 엑셀 `연장재배 투자비(300평)`과 `경영비(10a, 300평)`의 300평 기준 자료를 기본값으로 사용합니다.
+- 기본 투자비는 현재 온실면적에 비례해 `현재 온실면적 ÷ 300평` 계수로 환산합니다.
+- 이중비닐 공사와 보온커튼 공사는 10년, 이중비닐 피복재는 3년, 다겹보온커튼 자재비는 5년 정액법입니다.
 """
         )
 
