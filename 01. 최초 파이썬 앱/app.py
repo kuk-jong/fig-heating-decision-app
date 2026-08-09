@@ -43,8 +43,13 @@ U_VALUES = {
 }
 
 FUEL_SETTINGS = {
-    "면세유(경유)": {"efficiency": 0.85, "calorific": 8500, "default_unit_cost": 1100},
-    "농사용 전기": {"efficiency": 0.98, "calorific": 860, "default_unit_cost": 50},
+    "면세유(경유)": {"efficiency": 0.85, "calorific": 8500, "default_unit_cost": 1100.0},
+    "농사용 전기": {
+        "efficiency": 0.98,
+        "calorific": 860,
+        "default_unit_cost": 65.9,
+        "basic_cost_per_kw": 1150,
+    },
 }
 
 AIR_TIGHTNESS_LEVELS = {
@@ -352,6 +357,7 @@ def winter_analysis(
     winter_revenue = 0.0
     winter_fuel_cost = 0.0
     total_heating_hours = 0.0
+    peak_energy_kw = 0.0
 
     for day_idx, date in enumerate(dates):
         min_temp = simulated_min_temp(region_base, region_amp, day_idx, days_total)
@@ -360,6 +366,9 @@ def winter_analysis(
         daily_load = surface_area * u_val * delta_t * heating_hours * airtightness_factor * side_wing_factor_value
         needed_energy = daily_load / (fuel["calorific"] * fuel["efficiency"])
         winter_fuel_cost += needed_energy * unit_fuel_cost
+        if heating_hours:
+            hourly_energy_kw = (daily_load / heating_hours) / (fuel["calorific"] * fuel["efficiency"])
+            peak_energy_kw = max(peak_energy_kw, hourly_energy_kw)
         total_heating_hours += heating_hours
 
         season_factor = 1.0
@@ -370,6 +379,9 @@ def winter_analysis(
         winter_revenue += daily_base_yield * season_factor * market_price
 
     avg_heating_hours = total_heating_hours / days_total if days_total else 0
+    if "basic_cost_per_kw" in fuel:
+        winter_month_count = len({date.month for date in dates})
+        winter_fuel_cost += peak_energy_kw * fuel["basic_cost_per_kw"] * winter_month_count
     return int(winter_revenue), int(winter_fuel_cost), avg_heating_hours
 
 
@@ -449,7 +461,7 @@ def sensitivity_table(values: dict, region_info: dict, variable: str) -> pd.Data
     elif variable == "fuel_cost":
         for rate in [0.8, 0.9, 1.0, 1.1, 1.2]:
             scenario = values.copy()
-            scenario["unit_fuel_cost"] = int(values["unit_fuel_cost"] * rate)
+            scenario["unit_fuel_cost"] = values["unit_fuel_cost"] * rate
             summary = calculate_profit_summary(scenario, region_info)
             records.append(
                 {
@@ -652,11 +664,14 @@ def collect_inputs() -> tuple[bool, dict]:
 
             with st.expander("4. 에너지 설정", expanded=False):
                 energy_source = st.selectbox("사용 연료", list(FUEL_SETTINGS.keys()))
+                unit_cost_label = "전력량요금 (원/kWh)" if energy_source == "농사용 전기" else "연료 단가 (원/L)"
                 unit_fuel_cost = st.number_input(
-                    "연료 단가 (원)",
+                    unit_cost_label,
                     value=FUEL_SETTINGS[energy_source]["default_unit_cost"],
-                    min_value=0,
+                    min_value=0.0,
                 )
+                if energy_source == "농사용 전기":
+                    st.caption("농사용 저압 기준: 전력량요금 65.9원/kWh, 기본요금 1,150원/kW·월을 겨울 기간에 추가 반영합니다.")
                 target_temp = st.slider("목표 온도 (℃)", 8, 22, 15)
                 insul_type = st.selectbox("보온 등급", list(U_VALUES.keys()))
                 airtightness_level = st.selectbox(
