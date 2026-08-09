@@ -49,7 +49,6 @@ FUEL_SETTINGS = {
         "calorific": 860,
         "default_unit_cost": 65.9,
         "basic_cost_per_kw": 1150,
-        "cost_adjustment": 0.90,
     },
 }
 
@@ -383,7 +382,6 @@ def winter_analysis(
     if "basic_cost_per_kw" in fuel:
         winter_month_count = len({date.month for date in dates})
         winter_fuel_cost += peak_energy_kw * fuel["basic_cost_per_kw"] * winter_month_count
-    winter_fuel_cost *= fuel.get("cost_adjustment", 1.0)
     return int(winter_revenue), int(winter_fuel_cost), avg_heating_hours
 
 
