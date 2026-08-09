@@ -541,7 +541,12 @@ def collect_inputs() -> tuple[bool, dict]:
             st.info("데이터 입력 후 맨 아래 버튼을 누르세요.")
 
             with st.expander("0. 지역 선택", expanded=True):
-                region_name = st.selectbox("전남 시·군 선택", list(REGION_DATA.keys()))
+                region_options = list(REGION_DATA.keys())
+                region_name = st.selectbox(
+                    "전남 시·군 선택",
+                    region_options,
+                    index=region_options.index("해남군"),
+                )
 
             with st.expander("1. 온실 규격", expanded=False):
                 span_count = st.number_input(
