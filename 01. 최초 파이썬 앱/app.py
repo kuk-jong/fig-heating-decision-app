@@ -49,7 +49,7 @@ FUEL_SETTINGS = {
         "calorific": 860,
         "default_unit_cost": 65.9,
         "basic_cost_per_kw": 1150,
-        "cost_adjustment": 0.40,
+        "cost_adjustment": 0.90,
     },
 }
 
@@ -528,7 +528,7 @@ def normalize_inputs(values: dict) -> dict:
     normalized.setdefault("side_wing_level", "양쪽 방풍벽 (표준, 0.94)")
     normalized.setdefault("side_wing_width", 1.5)
     normalized.setdefault("airtightness_level", "양호 (표준, 1.00)")
-    normalized.setdefault("insul_type", "비닐 2겹 (U=4.5)")
+    normalized.setdefault("insul_type", "다겹보온커튼 (U=2.0)")
     normalized.setdefault("energy_source", "면세유(경유)")
     normalized.setdefault("winter_enabled", True)
     return normalized
@@ -675,7 +675,12 @@ def collect_inputs() -> tuple[bool, dict]:
                 if energy_source == "농사용 전기":
                     st.caption("농사용 저압 기준: 전력량요금 65.9원/kWh, 기본요금 1,150원/kW·월을 겨울 기간에 추가 반영합니다.")
                 target_temp = st.slider("목표 온도 (℃)", 8, 22, 15)
-                insul_type = st.selectbox("보온 등급", list(U_VALUES.keys()))
+                insul_options = list(U_VALUES.keys())
+                insul_type = st.selectbox(
+                    "보온 등급",
+                    insul_options,
+                    index=insul_options.index("다겹보온커튼 (U=2.0)"),
+                )
                 airtightness_level = st.selectbox(
                     "온실 기밀도",
                     list(AIR_TIGHTNESS_LEVELS.keys()),
