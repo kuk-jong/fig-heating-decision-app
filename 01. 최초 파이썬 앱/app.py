@@ -70,6 +70,21 @@ DEFAULT_GREENHOUSE = {
     "gh_ridge_h": 4.0,
 }
 
+DEFAULT_CROP_PLANS = {
+    "summer_only": {
+        "summer_total_yield": 2500,
+        "summer_price": 6400,
+        "winter_total_yield": 0,
+        "winter_price": 0,
+    },
+    "summer_winter": {
+        "summer_total_yield": 1219,
+        "summer_price": 6400,
+        "winter_total_yield": 635,
+        "winter_price": 30000,
+    },
+}
+
 BASE_INVESTMENT_AREA_PYEONG = 300.0
 BASE_INVESTMENT_AREA_M2 = BASE_INVESTMENT_AREA_PYEONG * 3.3
 BASE_INVESTMENT_10K_WON = {
@@ -547,9 +562,34 @@ def collect_inputs() -> tuple[bool, dict]:
                 st.caption(f"온실면적: {floor_area_m2:,.0f} ㎡ / 약 {floor_area_m2 / 3.3:,.1f} 평")
 
             with st.expander("2. 연간 생산 계획", expanded=False):
+                winter_enabled = st.checkbox(
+                    "겨울재배 실시",
+                    value=True,
+                    key="winter_enabled_input",
+                    help="선택을 해제하면 여름재배만 분석하고 겨울 매출, 난방비, 겨울 투자 상각은 0으로 계산합니다.",
+                )
+                crop_mode = "summer_winter" if winter_enabled else "summer_only"
+                crop_defaults = DEFAULT_CROP_PLANS[crop_mode]
+                if st.session_state.get("crop_mode_for_defaults") != crop_mode:
+                    st.session_state["summer_total_yield_input"] = crop_defaults["summer_total_yield"]
+                    st.session_state["summer_price_input"] = crop_defaults["summer_price"]
+                    st.session_state["winter_total_yield_input"] = crop_defaults["winter_total_yield"]
+                    st.session_state["winter_price_input"] = crop_defaults["winter_price"]
+                    st.session_state["crop_mode_for_defaults"] = crop_mode
+
                 st.markdown("**🌞 여름 작기**")
-                summer_total_yield = st.number_input("여름 총 생산량 (kg)", value=3000, step=100, min_value=0)
-                summer_price = st.number_input("여름 평균 단가 (원/kg)", value=6000, step=500, min_value=0)
+                summer_total_yield = st.number_input(
+                    "여름 총 생산량 (kg)",
+                    step=100,
+                    min_value=0,
+                    key="summer_total_yield_input",
+                )
+                summer_price = st.number_input(
+                    "여름 평균 단가 (원/kg)",
+                    step=500,
+                    min_value=0,
+                    key="summer_price_input",
+                )
                 summer_cost_ratio = st.slider(
                     "여름철 경영비 비율 (%)",
                     10,
@@ -560,14 +600,19 @@ def collect_inputs() -> tuple[bool, dict]:
 
                 st.markdown("---")
                 st.markdown("**⛄ 겨울 작기**")
-                winter_enabled = st.checkbox(
-                    "겨울재배 실시",
-                    value=True,
-                    help="선택을 해제하면 여름재배만 분석하고 겨울 매출, 난방비, 겨울 투자 상각은 0으로 계산합니다.",
-                )
                 if winter_enabled:
-                    winter_total_yield = st.number_input("겨울 예상 생산량 (kg)", value=1200, step=100, min_value=0)
-                    market_price = st.number_input("겨울 예상 단가 (원/kg)", value=18000, step=1000, min_value=0)
+                    winter_total_yield = st.number_input(
+                        "겨울 예상 생산량 (kg)",
+                        step=100,
+                        min_value=0,
+                        key="winter_total_yield_input",
+                    )
+                    market_price = st.number_input(
+                        "겨울 예상 단가 (원/kg)",
+                        step=1000,
+                        min_value=0,
+                        key="winter_price_input",
+                    )
                 else:
                     winter_total_yield = 0
                     market_price = 0
