@@ -86,10 +86,15 @@ DEFAULT_CROP_PLANS = {
     "summer_winter": {
         "summer_total_yield": 1219,
         "summer_price": 6400,
-        "summer_cost_ratio": 30,
+        "summer_cost_ratio": 43,
         "winter_total_yield": 635,
         "winter_price": 30000,
     },
+}
+
+CROP_MODE_LABELS = {
+    "여름재배(관행)": "summer_only",
+    "겨울재배": "summer_winter",
 }
 
 BASE_INVESTMENT_AREA_PYEONG = 300.0
@@ -300,6 +305,24 @@ def annual_depreciation_won(
 def scaled_investment_defaults_10k(floor_area_m2: float) -> dict:
     scale = max(floor_area_m2, 0.0) / BASE_INVESTMENT_AREA_M2
     return {key: int(round(value * scale)) for key, value in BASE_INVESTMENT_10K_WON.items()}
+
+
+def scaled_crop_defaults(floor_area_m2: float, crop_mode: str) -> dict:
+    scale = max(floor_area_m2, 0.0) / BASE_INVESTMENT_AREA_M2
+    defaults = DEFAULT_CROP_PLANS[crop_mode].copy()
+    defaults["summer_total_yield"] = int(round(defaults["summer_total_yield"] * scale))
+    defaults["winter_total_yield"] = int(round(defaults["winter_total_yield"] * scale))
+    return defaults
+
+
+def comma_int_input(label: str, value: int, key: str, help: str | None = None) -> int:
+    if key not in st.session_state:
+        st.session_state[key] = f"{int(value):,}"
+    raw_value = st.text_input(label, key=key, help=help)
+    digits = "".join(ch for ch in str(raw_value) if ch.isdigit())
+    if not digits:
+        return 0
+    return int(digits)
 
 
 def simulated_min_temp(base_t: float, amp_t: float, day_idx: int, days_total: int) -> float:
@@ -581,33 +604,35 @@ def collect_inputs() -> tuple[bool, dict]:
                 st.caption(f"온실면적: {floor_area_m2:,.0f} ㎡ / 약 {floor_area_m2 / 3.3:,.1f} 평")
 
             with st.expander("2. 연간 생산 계획", expanded=False):
-                winter_enabled = st.checkbox(
-                    "겨울재배 실시",
-                    value=True,
-                    key="winter_enabled_input",
-                    help="선택을 해제하면 여름재배만 분석하고 겨울 매출, 난방비, 겨울 투자 상각은 0으로 계산합니다.",
+                crop_mode_label = st.radio(
+                    "재배 방식",
+                    list(CROP_MODE_LABELS.keys()),
+                    index=1,
+                    horizontal=True,
+                    key="crop_mode_label_input",
+                    help="여름재배(관행)는 여름 작기만, 겨울재배는 여름 작기와 겨울 작기를 함께 분석합니다.",
                 )
-                crop_mode = "summer_winter" if winter_enabled else "summer_only"
-                crop_defaults = DEFAULT_CROP_PLANS[crop_mode]
-                if st.session_state.get("crop_mode_for_defaults") != crop_mode:
-                    st.session_state["summer_total_yield_input"] = crop_defaults["summer_total_yield"]
-                    st.session_state["summer_price_input"] = crop_defaults["summer_price"]
+                crop_mode = CROP_MODE_LABELS[crop_mode_label]
+                winter_enabled = crop_mode == "summer_winter"
+                crop_defaults = scaled_crop_defaults(floor_area_m2, crop_mode)
+                crop_default_token = (crop_mode, round(floor_area_m2, 2))
+                if st.session_state.get("crop_mode_for_defaults") != crop_default_token:
+                    st.session_state["summer_total_yield_input"] = f"{crop_defaults['summer_total_yield']:,}"
+                    st.session_state["summer_price_input"] = f"{crop_defaults['summer_price']:,}"
                     st.session_state["summer_cost_ratio_input"] = crop_defaults["summer_cost_ratio"]
-                    st.session_state["winter_total_yield_input"] = crop_defaults["winter_total_yield"]
-                    st.session_state["winter_price_input"] = crop_defaults["winter_price"]
-                    st.session_state["crop_mode_for_defaults"] = crop_mode
+                    st.session_state["winter_total_yield_input"] = f"{crop_defaults['winter_total_yield']:,}"
+                    st.session_state["winter_price_input"] = f"{crop_defaults['winter_price']:,}"
+                    st.session_state["crop_mode_for_defaults"] = crop_default_token
 
                 st.markdown("**🌞 여름 작기**")
-                summer_total_yield = st.number_input(
+                summer_total_yield = comma_int_input(
                     "여름 총 생산량 (kg)",
-                    step=100,
-                    min_value=0,
+                    crop_defaults["summer_total_yield"],
                     key="summer_total_yield_input",
                 )
-                summer_price = st.number_input(
+                summer_price = comma_int_input(
                     "여름 평균 단가 (원/kg)",
-                    step=500,
-                    min_value=0,
+                    crop_defaults["summer_price"],
                     key="summer_price_input",
                 )
                 summer_cost_ratio = st.slider(
@@ -621,16 +646,14 @@ def collect_inputs() -> tuple[bool, dict]:
                 st.markdown("---")
                 st.markdown("**⛄ 겨울 작기**")
                 if winter_enabled:
-                    winter_total_yield = st.number_input(
+                    winter_total_yield = comma_int_input(
                         "겨울 예상 생산량 (kg)",
-                        step=100,
-                        min_value=0,
+                        crop_defaults["winter_total_yield"],
                         key="winter_total_yield_input",
                     )
-                    market_price = st.number_input(
+                    market_price = comma_int_input(
                         "겨울 예상 단가 (원/kg)",
-                        step=1000,
-                        min_value=0,
+                        crop_defaults["winter_price"],
                         key="winter_price_input",
                     )
                 else:
