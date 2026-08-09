@@ -79,12 +79,14 @@ DEFAULT_CROP_PLANS = {
     "summer_only": {
         "summer_total_yield": 2500,
         "summer_price": 6400,
+        "summer_cost_ratio": 40,
         "winter_total_yield": 0,
         "winter_price": 0,
     },
     "summer_winter": {
         "summer_total_yield": 1219,
         "summer_price": 6400,
+        "summer_cost_ratio": 30,
         "winter_total_yield": 635,
         "winter_price": 30000,
     },
@@ -585,6 +587,7 @@ def collect_inputs() -> tuple[bool, dict]:
                 if st.session_state.get("crop_mode_for_defaults") != crop_mode:
                     st.session_state["summer_total_yield_input"] = crop_defaults["summer_total_yield"]
                     st.session_state["summer_price_input"] = crop_defaults["summer_price"]
+                    st.session_state["summer_cost_ratio_input"] = crop_defaults["summer_cost_ratio"]
                     st.session_state["winter_total_yield_input"] = crop_defaults["winter_total_yield"]
                     st.session_state["winter_price_input"] = crop_defaults["winter_price"]
                     st.session_state["crop_mode_for_defaults"] = crop_mode
@@ -606,7 +609,7 @@ def collect_inputs() -> tuple[bool, dict]:
                     "여름철 경영비 비율 (%)",
                     10,
                     80,
-                    30,
+                    key="summer_cost_ratio_input",
                     help="매출액 중 비료, 인건비 등이 차지하는 비율",
                 )
 
@@ -663,12 +666,21 @@ def collect_inputs() -> tuple[bool, dict]:
                 )
 
             with st.expander("4. 에너지 설정", expanded=False):
-                energy_source = st.selectbox("사용 연료", list(FUEL_SETTINGS.keys()))
+                energy_options = list(FUEL_SETTINGS.keys())
+                energy_source = st.selectbox(
+                    "사용 연료",
+                    energy_options,
+                    index=energy_options.index("농사용 전기"),
+                    key="energy_source_input",
+                )
+                if st.session_state.get("energy_source_for_defaults") != energy_source:
+                    st.session_state["unit_fuel_cost_input"] = FUEL_SETTINGS[energy_source]["default_unit_cost"]
+                    st.session_state["energy_source_for_defaults"] = energy_source
                 unit_cost_label = "전력량요금 (원/kWh)" if energy_source == "농사용 전기" else "연료 단가 (원/L)"
                 unit_fuel_cost = st.number_input(
                     unit_cost_label,
-                    value=FUEL_SETTINGS[energy_source]["default_unit_cost"],
                     min_value=0.0,
+                    key="unit_fuel_cost_input",
                 )
                 if energy_source == "농사용 전기":
                     st.caption("농사용 저압 기준: 전력량요금 65.9원/kWh, 기본요금 1,150원/kW·월을 겨울 기간에 추가 반영합니다.")
@@ -800,12 +812,16 @@ def show_results(values: dict) -> None:
     st.subheader("❄️ 2. 겨울 재배 투자 성적표")
     if values.get("winter_enabled", True):
         col1, col2, col3 = st.columns(3)
-        col1.metric("겨울 매출", f"{winter_revenue / 10000:,.0f} 만원")
-        col2.metric("겨울 비용(난방+상각)", f"{(winter_fuel_cost + depreciation) / 10000:,.0f} 만원")
+        col1.metric("겨울 매출", f"{winter_revenue / 10000:,.1f} 만원")
+        col2.metric("겨울 비용(난방+상각)", f"{(winter_fuel_cost + depreciation) / 10000:,.1f} 만원")
         col3.metric(
             "겨울 순이익",
-            f"{winter_net_profit / 10000:,.0f} 만원",
+            f"{winter_net_profit / 10000:,.1f} 만원",
             delta="투자 성공" if winter_net_profit > 0 else "투자 주의",
+        )
+        st.caption(
+            f"겨울 비용 세부: 난방비 {winter_fuel_cost / 10000:,.1f}만원 + "
+            f"시설 감가상각비 {depreciation / 10000:,.1f}만원"
         )
     else:
         st.info("겨울재배를 선택하지 않아 겨울 매출, 난방비, 겨울 투자 상각은 연간 분석에서 제외했습니다.")
@@ -817,7 +833,7 @@ def show_results(values: dict) -> None:
     c2.metric("연간 총 순이익", f"{total_annual_profit / 10000:,.0f} 만원")
     c3.metric(
         "겨울 기여 순이익" if values.get("winter_enabled", True) else "여름 순이익",
-        f"{(winter_net_profit if values.get('winter_enabled', True) else summer_net_profit) / 10000:,.0f} 만원",
+        f"{(winter_net_profit if values.get('winter_enabled', True) else summer_net_profit) / 10000:,.1f} 만원",
     )
 
     st.write("---")
