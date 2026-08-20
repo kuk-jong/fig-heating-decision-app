@@ -223,6 +223,9 @@ def greenhouse_svg(
     base_y = 218
     side_top_y = 160
     ridge_y = max(48, side_top_y - roof_height * 62)
+    # A quadratic Bezier curve reaches halfway between its endpoint and
+    # control point at the center. Use that actual apex for the height guide.
+    roof_apex_y = (side_top_y + ridge_y) / 2
     house_left = 74
     house_right = 486
     house_width = house_right - house_left
@@ -300,9 +303,9 @@ def greenhouse_svg(
   <text x="{house_mid}" y="250" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">1동 폭 {gh_width:g}m / 전체 온실 폭 {total_width:g}m / 온실 길이 {gh_length:g}m / {span_label}</text>
   <text x="{house_mid}" y="272" text-anchor="middle" font-size="13" fill="#475569">피복/보온: {cover_label}, {curtain_label}</text>
   <line x1="50" y1="{side_top_y}" x2="50" y2="{base_y}" stroke="#475569" stroke-width="2" marker-start="url(#arrowUp)" marker-end="url(#arrowDown)" />
-  <line x1="515" y1="{ridge_y}" x2="515" y2="{base_y}" stroke="#475569" stroke-width="2" marker-start="url(#arrowUp)" marker-end="url(#arrowDown)" />
+  <line x1="515" y1="{roof_apex_y:.1f}" x2="515" y2="{base_y}" stroke="#475569" stroke-width="2" marker-start="url(#arrowUp)" marker-end="url(#arrowDown)" />
   <text x="34" y="{(base_y + side_top_y) / 2:.1f}" text-anchor="middle" font-size="14" font-weight="700" fill="#334155" transform="rotate(-90 34 {(base_y + side_top_y) / 2:.1f})">측고 {gh_side_h:g}m</text>
-  <text x="535" y="{(base_y + ridge_y) / 2:.1f}" text-anchor="middle" font-size="14" font-weight="700" fill="#334155" transform="rotate(-90 535 {(base_y + ridge_y) / 2:.1f})">동고(최고높이) {gh_ridge_h:g}m</text>
+  <text x="535" y="{(base_y + roof_apex_y) / 2:.1f}" text-anchor="middle" font-size="14" font-weight="700" fill="#334155" transform="rotate(-90 535 {(base_y + roof_apex_y) / 2:.1f})">동고(최고높이) {gh_ridge_h:g}m</text>
   <defs>
     <marker id="arrowUp" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
       <path d="M4,0 L8,8 L0,8 Z" fill="#475569" />
