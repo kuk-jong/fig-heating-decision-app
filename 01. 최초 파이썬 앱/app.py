@@ -894,9 +894,12 @@ def show_results(values: dict) -> None:
             f"{winter_net_profit / 10000:,.1f} 만원",
             delta="투자 성공" if winter_net_profit > 0 else "투자 주의",
         )
-        st.caption(
+        st.markdown(
+            '<p style="color:#1e293b; font-size:1rem; font-weight:700; margin:0.4rem 0 0.8rem;">'
             f"겨울 비용 세부: 난방비 {winter_fuel_cost / 10000:,.1f}만원 + "
             f"시설 감가상각비 {depreciation / 10000:,.1f}만원"
+            "</p>",
+            unsafe_allow_html=True,
         )
     else:
         st.info("겨울재배를 선택하지 않아 겨울 매출, 난방비, 겨울 투자 상각은 연간 분석에서 제외했습니다.")
