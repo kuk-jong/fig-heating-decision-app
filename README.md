@@ -19,6 +19,8 @@ streamlit run app.py
 
 ```toml
 APP_PASSWORD = "원하는_접속_비밀번호"
+# 배포 주소가 기본값과 다른 경우에만 추가하세요.
+APP_URL = "https://내-앱-주소.streamlit.app"
 ```
 
 ## 주요 파일

@@ -1,13 +1,34 @@
 import base64
+from io import BytesIO
 import math
 import os
 
 import numpy as np
 import pandas as pd
+import qrcode
 import streamlit as st
 
 
 st.set_page_config(page_title="전남 무화과 경영 분석기", layout="wide")
+
+DEFAULT_APP_URL = "https://fig-heating-decision-app.streamlit.app"
+
+
+def create_qr_png(data: str) -> bytes:
+    """Create a scannable QR code PNG without relying on an external API."""
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=4,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+
+    image = qr.make_image(fill_color="black", back_color="white")
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 REGION_DATA = {
@@ -117,6 +138,14 @@ def get_password() -> str:
     except Exception:
         password = None
     return password or os.getenv("APP_PASSWORD", "1234")
+
+
+def get_app_url() -> str:
+    try:
+        app_url = st.secrets.get("APP_URL", None)
+    except Exception:
+        app_url = None
+    return app_url or os.getenv("APP_URL", DEFAULT_APP_URL)
 
 
 def require_login() -> None:
@@ -742,10 +771,25 @@ def collect_inputs() -> tuple[bool, dict]:
 
         st.write("---")
         st.markdown("**📱 모바일로 접속하기(선택)**")
-        qr_data = st.text_input("앱 URL", value="", help="배포 후 Streamlit URL을 넣으면 QR이 생성됩니다.")
+        qr_data = st.text_input(
+            "앱 URL",
+            value=get_app_url(),
+            placeholder="https://example.streamlit.app",
+            help="현재 앱 주소가 기본 입력되어 있습니다. 다른 주소의 QR 코드도 만들 수 있습니다.",
+        )
         if qr_data.strip():
-            qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={qr_data.strip()}"
-            st.image(qr_url, caption="카메라로 스캔하세요")
+            try:
+                qr_png = create_qr_png(qr_data.strip())
+                st.image(qr_png, caption="카메라로 스캔하세요", width=180)
+                st.download_button(
+                    "QR 코드 다운로드",
+                    data=qr_png,
+                    file_name="fig-heating-app-qr.png",
+                    mime="image/png",
+                    width="stretch",
+                )
+            except (ValueError, OverflowError) as exc:
+                st.error(f"QR 코드를 만들 수 없습니다. 입력 내용을 확인해 주세요. ({exc})")
 
     return submit_btn, {
         "region_name": region_name,
