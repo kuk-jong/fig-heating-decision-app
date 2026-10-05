@@ -14,6 +14,8 @@ source=source.rsplit('\nrequire_login()\n',1)[0]
 source=source.replace('st.set_page_config(page_title="전남 무화과 경영 분석기", layout="wide")','')
 core=types.ModuleType('fig_original_core')
 exec(compile(source,str(Path(__file__).parent/'original_app.py'),'exec'),core.__dict__)
+# The 3D component replaces the legacy drawing in this independent edition.
+core.greenhouse_svg=lambda *args,**kwargs: ''
 core.require_login()
 st.title('전남 무화과 경영의사결정지원시스템 · 보완판')
 st.caption('Python·Streamlit 원본 구성 유지 / 별도 사본 v0.1')
@@ -37,3 +39,4 @@ if 'enh_last_analysis' in st.session_state:
     show_extension(st,pd,saved,core)
 else:st.info('왼쪽 사이드바를 입력하고 연간 분석 실행을 눌러주세요.')
 core.show_references()
+
