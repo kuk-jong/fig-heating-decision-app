@@ -1,32 +1,38 @@
-# Python·Streamlit 원본 구성 보완판 v0.1
+# 무화과 시설재배 경영의사결정지원시스템
 
-기준 원본: kuk-jong/fig-heating-decision-app의 `01. 최초 파이썬 앱/app.py`.
+원본을 보존한 별도 Python·Streamlit 앱입니다. 루트 app.py와 01. 최초 파이썬 앱 및 기존 앱의 배포 설정은 변경하지 않습니다.
 
-사이드바 입력 → 연간 분석 실행 → 온실 요약·여름 성적표·겨울 성적표·연간 경영분석·민감도라는 원본 흐름을 유지합니다. 별도 진입점 app.py에서 원본 함수 스냅샷을 불러오며 원본 저장소의 루트 진입점과 기존 본문은 수정하지 않습니다.
+원본 사이드바, 온실/모델 요약, 여름·겨울 성적표, 연간 분석과 민감도를 유지합니다. 온실 요약 아래, 여름 성적표 위에 3D 온실을 표시하며 2D 개략도는 제외합니다. 양액기 쪽이 정면이고 보온커튼은 열린 상태입니다. 금액은 정수 만원으로 표시하고 계산 정밀도는 유지합니다. 농가유형·전환목적, 추가 투자·운영조건, 준비확인·근거 및 연결된 추가 분석은 표시하지 않습니다.
 
-추가 기능: 기존/신규 농가, 전환 목적 기록, 재사용 투자 제외, 추가 투자·운영비·자가노동·차입 조건, 기존 실적 대비 추가 영업현금, 동시 시나리오, 준비 확인·메모·CSV. 마음에 드신 3D 온실·양액설비는 입력 치수에 연결한 보조 시각화로 포함합니다.
+## 별도 배포
 
-실행: `pip install -r requirements.txt`, `streamlit run app.py --server.port 8502`.
+Streamlit Community Cloud에서 기존 앱을 편집하지 말고 새 앱을 만드세요.
 
-로그인은 원본의 APP_PASSWORD 설정을 사용합니다. Streamlit Cloud에서는 이 별도 폴더 app.py를 새 앱의 진입점으로 지정하고 새 앱 Secrets에 APP_PASSWORD를 설정하세요. 기존 앱의 배포 진입점은 바꾸지 않습니다. Python 앱은 GitHub Pages로 실행할 수 없습니다.
+- Repository: kuk-jong/fig-heating-decision-app
+- Branch: main
+- Main file path: streamlit-enhanced/app.py
+- Python: 3.12
+- 로그인 기본값은 요청한 새 앱 비밀번호입니다. 새 앱 Secrets의 APP_PASSWORD로 재설정할 수 있습니다. 원본 Secrets는 공유하지 않습니다.
+- 새 앱의 실제 공개 URL을 Secrets의 APP_URL에 설정하면 QR코드가 새 앱을 가리킵니다. 설정 전에는 원본 주소를 대신 표시하지 않습니다.
 
-상단 성적표는 원본 모델이고, 아래 보완 분석은 추가 조건을 적용한 별도 결과입니다. 겨울 기간(11~2월), 14시간 가온, 모의 기상·CSV 파라미터화와 원본 생산·단가 기본값은 유지했습니다. 수확기 연장·조기 출하는 목적 기록만 하며 해당 기간의 난방·생산을 자동 계산하지 않습니다. 보완판도 초기 정착률·월별 부족액·할인·세금·보조금·시설 재투자를 모델링하지 않습니다.
+로컬 실행: pip install -r requirements.txt 후 streamlit run app.py.
 
 ## 구조
 
-`app.py` 화면 연결 / `original_app.py` 기준 원본 스냅샷 / `enhancement.py` 추가 입력과 계산·출력 / `view3d.py` Streamlit HTML 컴포넌트 생성 / `viewer-assets/` 3D 모듈. 3D는 CDN 인터넷·WebGL이 필요하며 실패해도 다른 계산은 유지됩니다.
+app.py는 별도 화면·로그인 설정, original_app.py는 원본 함수 스냅샷, view3d.py와 viewer-assets/는 3D 표시를 담당합니다. enhancement.py는 실행하지 않는 이전 모듈입니다.
 
 ```mermaid
-flowchart LR
-  App[별도 app.py] --> Original[원본 함수 스냅샷]
-  App --> Extra[enhancement.py]
-  App --> View[view3d.py]
-  Original --> Results[원본 사이드바·성적표·민감도]
-  Extra --> Compare[전환·신규 비용·시나리오]
-  View --> Assets[양액설비·온실 모듈]
+flowchart TD
+  Entry[별도 app.py] --> Login[새 앱 로그인]
+  Login --> Inputs[원본 사이드바 입력]
+  Inputs --> Submit[연간 분석 실행]
+  Submit --> Summary[온실/모델 요약]
+  Summary --> View[3D 온실 컴포넌트]
+  View --> Summer[여름 성적표]
+  Summer --> Winter[겨울 투자 성적표]
+  Winter --> Annual[연간 분석 · 민감도]
+  Snapshot[original_app.py 함수 스냅샷] --> Inputs
+  Assets[view3d.py · viewer-assets] --> View
 ```
 
-검증: Streamlit AppTest의 분석 실행과 성적표·추가 지표, 독립 수치 예제의 비용·이자·원금 계산. 3D는 실제 브라우저에서 별도 확인합니다. 원본 로그인 설정을 그대로 유지하므로 새 앱 배포 시 비밀번호를 별도로 설정해야 합니다.
-
-## v0.2 구성 조정
-농가 유형·전환 목적, 추가 투자·운영 조건, 준비 확인·근거 입력과 연결된 보완 분석 출력을 제거했습니다. enhancement.py는 실행하지 않는 이전 모듈입니다. 원본 성적표·민감도와 3D 온실을 유지하고 금액은 정수 만원으로 반올림 표시합니다. 계산 내부 정밀도는 유지합니다. 2D 개략도는 표시하지 않습니다.
+겨울 계산 기간은 원본 11~2월입니다. 기본 수량·가격과 모의 기상은 현장 근거로 확인해야 합니다. 3D 설비·식재는 개략 예시로 투자·수량 계산과 독립입니다. 3D에는 WebGL과 Three.js CDN 접속이 필요합니다.

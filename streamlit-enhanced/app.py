@@ -5,7 +5,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 from view3d import greenhouse_component
 
-st.set_page_config(page_title='무화과 경영의사결정지원 · 보완판',layout='wide')
+APP_TITLE = '무화과 시설재배 경영의사결정지원시스템'
+st.set_page_config(page_title=APP_TITLE,layout='wide')
 source=(Path(__file__).parent/'original_app.py').read_text(encoding='utf-8')
 # Load the snapshot's existing functions without running its page entry point.
 source=source.rsplit('\nrequire_login()\n',1)[0]
@@ -27,9 +28,22 @@ def show_greenhouse_3d(values):
 core.show_greenhouse_3d=show_greenhouse_3d
 # The 3D component replaces the legacy drawing in this independent edition.
 core.greenhouse_svg=lambda *args,**kwargs: ''
+# Separate app configuration; the original entry point and its secrets are untouched.
+def enhanced_password():
+    try:
+        return str(st.secrets.get('APP_PASSWORD', '1234'))
+    except FileNotFoundError:
+        return '1234'
+def enhanced_app_url():
+    try:
+        return str(st.secrets.get('APP_URL', '')).strip()
+    except FileNotFoundError:
+        return ''
+core.get_password = enhanced_password
+core.get_app_url = enhanced_app_url
 core.require_login()
-st.title('전남 무화과 경영의사결정지원시스템 · 보완판')
-st.caption('Python·Streamlit 원본 구성 + 3D 온실 / 별도 사본 v0.3')
+st.title(APP_TITLE)
+st.caption('Python·Streamlit 원본 구성 + 3D 온실 / 별도 사본 v0.4')
 st.info('원본 겨울 모델의 기간은 11~2월입니다. 기본 수량·단가는 현장 근거를 확인해 변경하세요.')
 submit,values=core.collect_inputs()
 if submit:
@@ -40,4 +54,3 @@ if 'enh_last_analysis' in st.session_state:
     core.show_results(saved)
 else:st.info('왼쪽 사이드바를 입력하고 연간 분석 실행을 눌러주세요.')
 core.show_references()
-
