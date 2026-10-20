@@ -56,3 +56,7 @@ APP_URL = "https://내-앱-주소.streamlit.app"
 - 결과에서 계수, 관측일 수, 학습자료 적합 RMSE·R², 평균과 곡선을 확인할 수 있습니다.
 - 난방비와 민감도 분석에 동일한 곡선을 적용합니다. 일최저기온을 14시간 가온기간 외기로 쓰는 가정은 유지합니다.
 - 검증: `python -m unittest discover -s tests -v` (저장소 루트에서 실행).
+
+설계·UML: [APP_BLUEPRINT.md](01.%20최초%20파이썬%20앱/APP_BLUEPRINT.md).
+계산·데이터 명세: [CLIMATE_MODEL.md](docs/CLIMATE_MODEL.md).
+기상 CSV 예시는 두 지역의 1년 합성자료이며 실측값이 아닙니다. 실제 분석에는 관측자료로 교체하세요.

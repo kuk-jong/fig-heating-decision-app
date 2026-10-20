@@ -43,7 +43,7 @@ core.get_password = enhanced_password
 core.get_app_url = enhanced_app_url
 core.require_login()
 st.title(APP_TITLE)
-st.caption('Python·Streamlit 원본 구성 + 3D 온실 / 별도 사본 v0.4')
+st.caption('Python·Streamlit 원본 구성 + 3D 온실 / 별도 사본 v0.5 · 연간 사인 기온모형')
 st.info('원본 겨울 모델의 기간은 11~2월입니다. 기본 수량·단가는 현장 근거를 확인해 변경하세요.')
 submit,values=core.collect_inputs()
 if submit:

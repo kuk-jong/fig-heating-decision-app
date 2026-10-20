@@ -1,0 +1,102 @@
+classDiagram
+    class GreenhouseSpec {
+        +float width
+        +float length
+        +float side_height
+        +float ridge_height
+        +int span_count
+        +str side_wing_level
+        +float side_wing_width
+        +float side_wing_factor
+        +str airtightness_level
+        +float airtightness_factor
+        +floor_area() float
+        +surface_area() float
+        +render_preview() str
+    }
+
+    class ProductionPlan {
+        +float summer_yield
+        +int summer_price
+        +float summer_cost_ratio
+        +float winter_yield
+        +int winter_price
+    }
+
+    class InvestmentCost {
+        +int film_cost
+        +int curtain_cost
+        +int heater_cost
+        +int facility_cost
+        +annual_depreciation() int
+    }
+
+    class EnergySetting {
+        +str energy_source
+        +int unit_fuel_cost
+        +float target_temp
+        +float u_value
+        +float airtightness_factor
+        +float side_wing_factor
+    }
+
+    class RegionClimate {
+        +str region_name
+        +float A
+        +float B
+        +float C
+        +float D
+        +str source
+        +float rmse
+        +float r_squared
+        +simulated_min_temp(date) float
+    }
+
+    class ClimateDataset {
+        +DataFrame records
+        +validate_schema() bool
+        +filter_region(region_name) DataFrame
+        +clean_and_merge_daily() DataFrame
+        +fit_annual_curve(region_name) RegionClimate
+    }
+
+    class AnalysisInput {
+        +GreenhouseSpec greenhouse
+        +ProductionPlan production
+        +InvestmentCost investment
+        +EnergySetting energy
+        +RegionClimate climate
+    }
+
+    class AnalysisResult {
+        +int summer_revenue
+        +int summer_cost
+        +int winter_revenue
+        +int winter_fuel_cost
+        +int depreciation
+        +int annual_profit
+    }
+
+    class SensitivityResult {
+        +DataFrame target_temp_table
+        +DataFrame fuel_cost_table
+        +DataFrame insulation_table
+        +DataFrame airtightness_table
+        +DataFrame side_wing_table
+    }
+
+    class HeatingCalculator {
+        +calculate_heating_cost(input) int
+        +calculate_profit(input) AnalysisResult
+        +calculate_sensitivity(input) SensitivityResult
+    }
+
+    AnalysisInput --> GreenhouseSpec
+    AnalysisInput --> ProductionPlan
+    AnalysisInput --> InvestmentCost
+    AnalysisInput --> EnergySetting
+    AnalysisInput --> RegionClimate
+    ClimateDataset --> RegionClimate
+    HeatingCalculator --> AnalysisInput
+    HeatingCalculator --> AnalysisResult
+    HeatingCalculator --> SensitivityResult

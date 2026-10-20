@@ -1,0 +1,22 @@
+flowchart TD
+    request["분석 실행"] --> hasCsv{"CSV 있음"}
+    hasCsv -->|"예"| validate["필수 컬럼 및 지역 확인"]
+    validate --> clean["무효 행 제외 및 중복일 평균"]
+    clean --> eligible{"관측일 3일 및 계절 범위 60일 이상"}
+    eligible -->|"아니오"| stopped["오류 표시 및 분석 중단"]
+    validate -->|"컬럼 누락 또는 지역 없음"| stopped
+    eligible -->|"예"| regress["절편 및 sin cos 최소제곱 회귀"]
+    regress --> stable{"랭크 및 조건수 적합"}
+    stable -->|"아니오"| stopped
+    stable -->|"예"| model["A B C D 로 변환"]
+    hasCsv -->|"아니오"| assumed["기존 가정곡선의 연간식 근사"]
+    assumed --> model
+    model --> preview["계수 및 곡선과 주의사항"]
+    model --> dailyTemp["겨울 기간의 각 날짜 T(x)"]
+    dailyTemp --> load["온도차 및 14시간 가정으로 열부하 계산"]
+    load --> fuelCost["연료 효율 및 단가로 난방비 계산"]
+    fuelCost --> income["생산계획 및 투자 상각을 포함한 수지"]
+    model --> scenarios["동일 모형으로 조건별 민감도 분석"]
+    income --> report["리포트 표시"]
+    scenarios --> report
+    preview --> report

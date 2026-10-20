@@ -1,0 +1,11 @@
+flowchart TD
+    rootEntry["app.py"] --> originalCore["01. 최초 파이썬 앱/app.py"]
+    enhancedEntry["streamlit-enhanced/app.py"] --> enhancedCore["original_app.py 동적 로딩"]
+    originalCore --> climateFunctions["동일한 기온 회귀 함수군"]
+    enhancedCore --> climateFunctions
+    climateFunctions --> numpyFit["NumPy lstsq"]
+    climateFunctions --> heating["winter_analysis 및 민감도 분석"]
+    enhancedEntry --> viewComponent["view3d.py"]
+    viewComponent --> viewerAssets["viewer-assets JavaScript"]
+    viewerAssets --> threeCdn["Three.js CDN"]
+    regressionTests["tests/test_climate_regression.py"] --> climateFunctions
