@@ -47,7 +47,10 @@ def show_extension(st,pd,values,core):
     for name in x['reuse']:adjusted[mapping[name]]=0
     region=core.REGION_DATA[values['region_name']]
     csv,error=core.climate_params_from_csv(values.get('climate_file'),values['region_name'])
-    if csv:region={'base':csv['base'],'amp':csv['amp']}
+    if error:
+        st.error(error)
+        return
+    if csv:region=csv
     result=core.calculate_profit_summary(adjusted,region)
     # Original excludes facility depreciation in summer-only mode. Additional
     # analysis explicitly includes investment for any selected plan.
