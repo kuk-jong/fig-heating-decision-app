@@ -844,7 +844,7 @@ def collect_inputs() -> tuple[bool, dict]:
                 st.info('해당 지역의 내장 시간별 관측자료가 없습니다. 아래에서 해당 지역 CSV를 업로드하세요.')
             winter_start_year = st.number_input('겨울 작기 시작연도', min_value=2010, max_value=2100,
                                                 value=int(pd.Timestamp.now(tz='Asia/Seoul').year), step=1)
-            st.caption('야간 18:00~다음 날 08:00만 계산합니다. 이 14시간 중 외기가 목표온도보다 낮은 시간에만 난방부하가 발생합니다.')
+            st.caption('야간 18:00부터 다음 날 08:00까지만 계산합니다. 이 14시간 중 외기가 목표온도보다 낮은 시간에만 난방부하가 발생합니다.')
 
             submit_btn = st.form_submit_button(
                 label="🚜 연간 분석 실행",
@@ -858,7 +858,7 @@ def collect_inputs() -> tuple[bool, dict]:
                 type=["csv"],
                 help="원본 농업기상 CSV(날짜·평균기온) 또는 datetime,temp_mean 형식. 한 관측지 자료만 업로드하세요.",
             )
-            st.caption("미업로드 시 선택 관측지의 2016~2025년 자료에서 추정한 주별 시간기온 모형을 사용합니다.")
+            st.caption("미업로드 시 선택 관측지의 2016년부터 2025년까지 자료에서 추정한 주별 시간기온 모형을 사용합니다.")
 
         st.write("---")
         st.markdown("**📱 모바일로 접속하기(선택)**")
@@ -922,12 +922,12 @@ def show_results(values: dict) -> None:
             uploaded = values.get('climate_file')
             if uploaded is not None:
                 model = weekly_weather.model_from_upload(uploaded.getvalue(), station)
-                climate_source = f"업로드 시간별 기상자료 · {model['start'][:10]}~{model['end'][:10]}"
+                climate_source = f"업로드 시간별 기상자료 · {model['start'][:10]}부터 {model['end'][:10]}까지"
             else:
                 model = weekly_weather.load_catalog()['sites'].get(station)
                 if model is None:
                     raise ValueError('선택 지역의 내장 관측자료가 없습니다. 해당 지역의 시간별 CSV를 업로드하세요.')
-                climate_source = f"{station} · {model['start'][:10]}~{model['end'][:10]} 관측 기반 주간 대표곡선"
+                climate_source = f"{station} · {model['start'][:10]}부터 {model['end'][:10]}까지 관측 기반 주간 대표곡선"
             if model['county'] != values['region_name'].split()[0]:
                 raise ValueError('선택 시군과 관측지의 지역이 다릅니다. 관측지를 다시 선택하세요.')
             region_info = {'kind': 'weekly', 'model': model,
@@ -957,7 +957,7 @@ def show_results(values: dict) -> None:
     st.header(f"📊 연간 경영 분석 리포트 ({values['region_name']})")
     st.caption(f"기상자료 기준: {climate_source}")
     if values.get("winter_enabled", True):
-        st.caption(f"분석 기간: {year}년 11월~{year+1}년 2월 · 야간 18:00~다음 날 08:00 난방")
+        st.caption(f"분석 기간: {year}년 11월부터 {year+1}년 2월까지 · 야간 18:00부터 다음 날 08:00까지 난방")
         st.caption("주별 평균적인 하루 기온을 사용하는 시나리오입니다. 한파와 실제 날씨 변동은 평활화될 수 있습니다.")
 
     st.subheader("🏠 온실/모델 요약")
@@ -1107,14 +1107,14 @@ def show_references() -> None:
         st.markdown(
             """
 ### 1. 기상 데이터
-- 제공된 전남 시간별 관측자료의 최근 10개 연도(2016~2025년)로 관측지별 주간 하루 기온곡선을 추정합니다. 관측지별 실제 사용 기간은 다를 수 있습니다.
+- 제공된 전남 시간별 관측자료의 최근 10개 연도(2016년부터 2025년까지)로 관측지별 주간 하루 기온곡선을 추정합니다. 관측지별 실제 사용 기간은 다를 수 있습니다.
 - 같은 주에는 동일한 24시간 대표곡선을 사용하고 다음 주에는 다음 주 곡선을 적용합니다.
 - 회귀계수와 곡선은 내부 계산용으로만 사용합니다. 한파를 포함한 실제 기온 변동까지 재현하지는 않습니다.
 - 선택 관측지 자료 대신 한국어 농업기상 CSV 또는 datetime,temp_mean 형식의 한 관측지 자료를 업로드할 수 있습니다.
 
 ### 2. 난방부하 산출 구조
-- 일사에 의한 주간 승온을 직접 계산하지 않으므로 야간 18:00~다음 날 08:00의 14시간만 난방 계산 대상으로 둡니다.
-- 이 시간대의 각 1시간에 대해 양의 온도차만 합산합니다. 실제 난방 필요시간은 하루 0~14시간으로 계산되며 14시간 연속 가동을 강제하지 않습니다.
+- 일사에 의한 주간 승온을 직접 계산하지 않으므로 야간 18:00부터 다음 날 08:00까지의 14시간만 난방 계산 대상으로 둡니다.
+- 이 시간대의 각 1시간에 대해 양의 온도차만 합산합니다. 실제 난방 필요시간은 하루 0시간에서 14시간으로 계산되며 14시간 연속 가동을 강제하지 않습니다.
 - 주간 난방은 제외하므로 흐린 날·한파의 주간 난방비는 과소 추정할 수 있습니다.
 - 유효 열량(kWh) = 외피면적(㎡) × U(W/㎡·K) × 양의 온도차(℃) × 1시간 ÷ 1000 × 기밀도·방풍벽 계수.
 - 열량을 연료 열량(kWh/단위)·효율로 나눈 뒤 단가를 곱합니다. 경유 8,500kcal/L는 860kcal/kWh로 환산합니다.
