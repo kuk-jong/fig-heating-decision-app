@@ -1,6 +1,6 @@
 # 무화과 시설재배 경영의사결정지원시스템 — 후속 버전 설계
 
-버전: 0.6.1 / 개정일: 2026-10-21.
+버전: 0.6.2 / 개정일: 2026-10-21.
 `releases/v0.5`의 독립 앱만 설명한다. 등록 신청 당시 제출본이나 기존 운영 앱을 대체한 문서가 아니다.
 이번 구현·문서·UML 갱신에는 생성형 AI를 활용했다.
 
@@ -31,7 +31,7 @@ releases/v0.5/
   requirements.txt
   weekly_weather.py      # 주차별 시간기온·열부하
   data/weekly_weather.json # 20개 관측지별 52주 계수 (원자료 미포함)
-  VERSION                # 0.6.1
+  VERSION                # 0.6.2
   run_app.bat
   .streamlit/secrets.toml.example
   examples/hourly_climate_example.csv  # 합성 예시, 관측자료 아님
@@ -205,7 +205,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     entry["releases/v0.5/app.py"] --> core["동일 폴더의 original_app.py 동적 로딩"]
-    entry --> version["후속 버전 0.6.1 표시"]
+    entry --> version["후속 버전 0.6.2 표시"]
     entry --> config["새 서비스의 APP_PASSWORD 및 APP_URL"]
     core --> regress["CSV 검증 및 weekly_weather.py 주별 시간기온"]
     regress --> numpy["NumPy lstsq"]

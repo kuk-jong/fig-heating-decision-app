@@ -10,7 +10,7 @@ assert not a.exception,[e.message for e in a.exception]
 a.text_input[0].set_value('1234')
 next(b for b in a.button if b.label=='로그인').click();a.run()
 assert not a.exception,[e.message for e in a.exception]
-assert any('v0.6.1' in c.value for c in a.caption)
+assert any('v0.6.2' in c.value for c in a.caption)
 next(b for b in a.button if '연간 분석 실행' in b.label).click();a.run()
 assert not a.exception,[e.message for e in a.exception]
 assert len(a.metric)==13
@@ -39,5 +39,5 @@ assert not a.exception and len(a.error)==1 and len(a.metric)==0
 # Summer-only analysis does not require winter weather.
 a.session_state['enh_last_analysis']={**saved,'climate_file':None,'winter_enabled':False};a.run()
 assert not a.exception and len(a.metric)>0
-print(json.dumps({'version':'0.6.1','bundled_weather':'pass','thermostatic_24h':'pass','hourly_csv':'pass',
+print(json.dumps({'version':'0.6.2','bundled_weather':'pass','thermostatic_24h':'pass','hourly_csv':'pass',
                   'rerun':'pass','invalid_csv':'pass','unavailable_county':'pass','summer_only':'pass'},ensure_ascii=False))

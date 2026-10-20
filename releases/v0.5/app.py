@@ -5,7 +5,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from view3d import greenhouse_component
 
-APP_VERSION = '0.6.1'
+APP_VERSION = '0.6.2'
 APP_TITLE = '무화과 시설재배 경영의사결정지원시스템'
 st.set_page_config(page_title=f'{APP_TITLE} v{APP_VERSION}',layout='wide')
 source=(Path(__file__).parent/'original_app.py').read_text(encoding='utf-8')
