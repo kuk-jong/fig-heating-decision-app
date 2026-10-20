@@ -42,3 +42,8 @@ APP_URL = "https://내-앱-주소.streamlit.app"
 - `min_temp`
 
 예시는 `01. 최초 파이썬 앱/climate_csv_template.csv`를 참고하세요.
+
+
+## 별도 후속 버전
+
+등록 신청 당시 버전과 기존 실행 경로를 유지하는 독립 후속 앱 v0.6.3 (기존 배포 경로 유지)은 [releases/v0.5](releases/v0.5/README.md)에 있습니다. 새 앱으로 배포할 때 `releases/v0.5/app.py`를 사용합니다.

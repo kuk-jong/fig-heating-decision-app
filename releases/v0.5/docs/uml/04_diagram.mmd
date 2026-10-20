@@ -1,0 +1,14 @@
+flowchart TD
+    entry["releases/v0.5/app.py"] --> core["동일 폴더의 original_app.py 동적 로딩"]
+    entry --> version["후속 버전 0.6.3 표시"]
+    entry --> config["새 서비스의 APP_PASSWORD 및 APP_URL"]
+    core --> regress["CSV 검증 및 weekly_weather.py 주별 시간기온"]
+    regress --> numpy["NumPy lstsq"]
+    regress --> bundled["data/weekly_weather.json 20개 관측지"]
+    core --> heating["난방비·연간 수지·민감도"]
+    entry --> component["view3d.py"]
+    component --> assets["viewer-assets JavaScript"]
+    assets --> cdn["Three.js CDN"]
+    entry --> sample["examples 합성 CSV 다운로드"]
+    tests["수치검사 및 AppTest"] --> core
+    tests --> entry
