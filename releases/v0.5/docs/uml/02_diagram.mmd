@@ -40,16 +40,15 @@ classDiagram
         +float side_wing_factor
     }
 
-    class RegionClimate {
+    class WeeklyWeather {
         +str region_name
-        +float A
-        +float B
-        +float C
-        +float D
+        +dict weekly_coefficients
+        +str station
+        +float hourly_period
         +str source
         +float rmse
         +float r_squared
-        +simulated_min_temp(date) float
+        +hourly_temperature(date, hour) float
     }
 
     class ClimateDataset {
@@ -57,7 +56,7 @@ classDiagram
         +validate_schema() bool
         +filter_region(region_name) DataFrame
         +clean_and_merge_daily() DataFrame
-        +fit_annual_curve(region_name) RegionClimate
+        +fit_weekly_models(station) WeeklyWeather
     }
 
     class AnalysisInput {
@@ -65,7 +64,14 @@ classDiagram
         +ProductionPlan production
         +InvestmentCost investment
         +EnergySetting energy
-        +RegionClimate climate
+        +WeeklyWeather climate
+        +HeatingSchedule schedule
+    }
+
+    class HeatingSchedule {
+        +int start_hour
+        +int duration_hours
+        +int winter_start_year
     }
 
     class AnalysisResult {
@@ -95,8 +101,9 @@ classDiagram
     AnalysisInput --> ProductionPlan
     AnalysisInput --> InvestmentCost
     AnalysisInput --> EnergySetting
-    AnalysisInput --> RegionClimate
-    ClimateDataset --> RegionClimate
+    AnalysisInput --> WeeklyWeather
+    AnalysisInput --> HeatingSchedule
+    ClimateDataset --> WeeklyWeather
     HeatingCalculator --> AnalysisInput
     HeatingCalculator --> AnalysisResult
     HeatingCalculator --> SensitivityResult

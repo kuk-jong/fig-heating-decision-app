@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import qrcode
 import streamlit as st
+import weekly_weather
 
 
 st.set_page_config(page_title="전남 무화과 경영 분석기", layout="wide")
@@ -496,6 +497,25 @@ def winter_analysis(
     return int(winter_revenue), int(winter_fuel_cost), avg_heating_hours
 
 
+def weekly_winter_analysis(surface_area, u_val, target_temp, unit_fuel_cost, energy_source,
+                           climate_model, winter_total_yield, market_price,
+                           airtightness_factor, side_wing_factor_value):
+    year = int(climate_model['winter_start_year'])
+    dates = pd.date_range(f'{year}-11-01', pd.Timestamp(year+1, 3, 1)-pd.Timedelta(days=1))
+    load = weekly_weather.heating_energy(
+        climate_model['model'], dates, climate_model['start_hour'], climate_model['duration_hours'],
+        target_temp, surface_area, u_val, airtightness_factor, side_wing_factor_value)
+    fuel = FUEL_SETTINGS[energy_source]
+    input_units = load['heat_kwh'] / ((fuel['calorific']/860)*fuel['efficiency'])
+    cost = input_units * unit_fuel_cost
+    if 'basic_cost_per_kw' in fuel:
+        input_peak_kw = load['peak_kw'] / fuel['efficiency']
+        cost += input_peak_kw * fuel['basic_cost_per_kw'] * len(set(dates.month))
+    revenue = sum(winter_total_yield/len(dates) * (0.8 if d.month==1 else 1.1 if d.month in (11,2) else 1.0)
+                  * market_price for d in dates)
+    return int(revenue), int(cost), load['heating_hours_per_day']
+
+
 def calculate_profit_summary(values: dict, region_info: dict) -> dict:
     surface_area = greenhouse_surface_area(
         values["gh_width"],
@@ -516,13 +536,14 @@ def calculate_profit_summary(values: dict, region_info: dict) -> dict:
             values["cost_heater"],
             values["cost_facility"],
         )
-        winter_revenue, winter_fuel_cost, avg_heating_hours = winter_analysis(
+        analysis = weekly_winter_analysis if region_info.get("kind") == "weekly" else winter_analysis
+        winter_revenue, winter_fuel_cost, avg_heating_hours = analysis(
             surface_area=surface_area,
             u_val=U_VALUES[values["insul_type"]],
             target_temp=values["target_temp"],
             unit_fuel_cost=values["unit_fuel_cost"],
             energy_source=values["energy_source"],
-            climate_model=default_climate_model(region_info),
+            climate_model=region_info if region_info.get("kind") == "weekly" else default_climate_model(region_info),
             winter_total_yield=values["winter_total_yield"],
             market_price=values["market_price"],
             airtightness_factor=AIR_TIGHTNESS_LEVELS[values["airtightness_level"]],
@@ -811,19 +832,36 @@ def collect_inputs() -> tuple[bool, dict]:
                     help="기밀도가 낮을수록 틈새바람과 누기로 난방부하가 증가한다고 가정합니다.",
                 )
 
+            st.markdown("**5. 시간별 기상자료와 가온시간**")
+            county = region_name.split()[0]
+            catalog = weekly_weather.load_catalog()
+            station_options = [label for label, info in catalog['sites'].items() if info['county'] == county]
+            if station_options:
+                default_station = station_options.index('해남군 옥천면') if '해남군 옥천면' in station_options else 0
+                weather_station = st.selectbox('기상 관측지', station_options, index=default_station)
+            else:
+                weather_station = f'{county} 업로드 관측지'
+                st.info('해당 지역의 내장 시간별 관측자료가 없습니다. 아래에서 해당 지역 CSV를 업로드하세요.')
+            heating_start_hour = st.selectbox('가온 시작 시각', list(range(24)), index=18, format_func=lambda h:f'{h:02d}:00')
+            heating_duration = st.slider('가온 가능시간 (시간/일)', 0, 24, 14)
+            winter_start_year = st.number_input('겨울 작기 시작연도', min_value=2010, max_value=2100,
+                                                value=int(pd.Timestamp.now(tz='Asia/Seoul').year), step=1)
+            end_hour = (heating_start_hour + heating_duration) % 24
+            st.caption(f'가온 허용시간: {heating_start_hour:02d}:00부터 {heating_duration}시간, 종료 {end_hour:02d}:00. 이 시간 안에서 외기가 목표온도보다 낮을 때만 난방합니다.')
+
             submit_btn = st.form_submit_button(
                 label="🚜 연간 분석 실행",
                 type="primary",
                 width="stretch",
             )
 
-        with st.expander("5. 기상 CSV 자료(선택)", expanded=False):
+        with st.expander("시간별 관측 CSV 교체(선택)", expanded=False):
             climate_file = st.file_uploader(
-                "지역별 일최저기온 CSV 업로드",
+                "한 관측지의 시간별 평균기온 CSV 업로드",
                 type=["csv"],
-                help="필수 컬럼: region, date, min_temp. 여러 해의 연중 일별 자료 권장. 날짜는 YYYY-MM-DD.",
+                help="원본 농업기상 CSV(날짜·평균기온) 또는 datetime,temp_mean 형식. 한 관측지 자료만 업로드하세요.",
             )
-            st.caption("미업로드 시 기존 내장 가정곡선의 연간 사인식 근사값을 사용합니다(관측자료 아님).")
+            st.caption("미업로드 시 선택 관측지의 2016~2025년 자료에서 추정한 주별 시간기온 모형을 사용합니다.")
 
         st.write("---")
         st.markdown("**📱 모바일로 접속하기(선택)**")
@@ -872,21 +910,43 @@ def collect_inputs() -> tuple[bool, dict]:
         "insul_type": insul_type,
         "airtightness_level": airtightness_level,
         "climate_file": climate_file,
+        "weather_station": weather_station,
+        "heating_start_hour": heating_start_hour,
+        "heating_duration": heating_duration,
+        "winter_start_year": int(winter_start_year),
     }
 
 
 def show_results(values: dict) -> None:
     values = normalize_inputs(values)
-    region_info = default_climate_model(REGION_DATA[values["region_name"]])
-    csv_region_info, climate_error = climate_params_from_csv(values.get("climate_file"), values["region_name"])
-    climate_source = "내장 기상 가정값(관측자료 미적용)"
-    if csv_region_info:
-        region_info = csv_region_info
-        climate_source = f"업로드 CSV 기반({csv_region_info['years']}개년, {csv_region_info['rows']:,}행)"
-    elif climate_error:
-        st.error(f"기상 CSV를 적용하지 못했습니다: {climate_error}")
-        st.info("CSV를 수정하거나 업로드를 해제한 후 다시 분석하세요. 잘못된 CSV를 내장값으로 대체하지 않습니다.")
-        return
+    region_info = {}
+    climate_source = '여름재배 단독 — 난방 계산 미적용'
+    if values.get('winter_enabled', True):
+        station = values.get('weather_station')
+        try:
+            uploaded = values.get('climate_file')
+            if uploaded is not None:
+                model = weekly_weather.model_from_upload(uploaded.getvalue(), station)
+                climate_source = f"업로드 시간별 기상자료 · {model['start'][:10]}~{model['end'][:10]}"
+            else:
+                model = weekly_weather.load_catalog()['sites'].get(station)
+                if model is None:
+                    raise ValueError('선택 지역의 내장 관측자료가 없습니다. 해당 지역의 시간별 CSV를 업로드하세요.')
+                climate_source = f"{station} · {model['start'][:10]}~{model['end'][:10]} 관측 기반 주간 대표곡선"
+            if model['county'] != values['region_name'].split()[0]:
+                raise ValueError('선택 시군과 관측지의 지역이 다릅니다. 관측지를 다시 선택하세요.')
+            region_info = {'kind': 'weekly', 'model': model,
+                           'start_hour': values['heating_start_hour'], 'duration_hours': values['heating_duration'],
+                           'winter_start_year': values['winter_start_year']}
+            # Validate the whole requested winter before any results are displayed.
+            year = region_info['winter_start_year']
+            dates = pd.date_range(f'{year}-11-01', pd.Timestamp(year+1,3,1)-pd.Timedelta(days=1))
+            weekly_weather.hourly_temperatures(model, dates, np.arange(24))
+            if model.get('period_coverage', 1) < .95:
+                st.warning('이 관측지는 기준기간 중 일부 연도·시간의 자료가 부족합니다. 사용 기간을 확인하세요.')
+        except (ValueError, KeyError, TypeError) as exc:
+            st.error(f'시간별 기상자료를 적용하지 못했습니다: {exc}')
+            return
 
     summary = calculate_profit_summary(values, region_info)
 
@@ -902,13 +962,16 @@ def show_results(values: dict) -> None:
 
     st.header(f"📊 연간 경영 분석 리포트 ({values['region_name']})")
     st.caption(f"기상자료 기준: {climate_source}")
+    if values.get("winter_enabled", True):
+        st.caption(f"분석 기간: {year}년 11월~{year+1}년 2월 · 가온 시작 {region_info['start_hour']:02d}:00 · 허용 {region_info['duration_hours']}시간/일")
+        st.caption("주별 평균적인 하루 기온을 사용하는 시나리오입니다. 한파와 실제 날씨 변동은 평활화될 수 있습니다.")
 
     st.subheader("🏠 온실/모델 요약")
     c1, c2 = st.columns(2)
     c3, c4 = st.columns(2)
     c1.metric("온실면적", f"{summary['floor_area_m2']:,.0f} ㎡")
     c2.metric("외피면적(근사)", f"{summary['surface_area']:,.0f} ㎡")
-    c3.metric("보온 U값", f"{U_VALUES[values['insul_type']]:.1f}")
+    c3.metric("보온 U값", f"{U_VALUES[values['insul_type']]:.1f} W/(㎡·K)")
     c4.metric("기밀도 계수", f"{AIR_TIGHTNESS_LEVELS[values['airtightness_level']]:.2f}")
     st.caption(
         f"평균 가온시간: {summary['avg_heating_hours']:.1f} 시간/일 / "
@@ -1050,17 +1113,17 @@ def show_references() -> None:
         st.markdown(
             """
 ### 1. 기상 데이터
-- 외기온 추정식은 `T(x) = A + B sin(Cx + D)`이며 연간 주기 365.2425일(C 고정)을 사용합니다.
-- CSV의 선택 지역 전체 일별 자료에 절편·사인·코사인 최소제곱 회귀를 적용하여 A·B·D를 추정합니다. 월별 평균이나 범위의 절반을 계수로 사용하지 않습니다.
-- `region`, `date`, `min_temp` 컬럼이 필요하며 여러 해의 연중 자료를 권장합니다. 제한된 계절 자료는 추정 불확실성이 큽니다.
-- 기존 지역별 `base`, `amp`는 내장 가정곡선을 연간 사인식으로 근사하는 데만 사용하며 관측자료로 간주하지 않습니다.
-- 다음 단계에서는 10년치 시간별 기온 자료를 연결해 지역별, 월별, 시간대별 보정계수로 교체하는 것이 좋습니다.
+- 제공된 전남 시간별 관측자료의 최근 10개 연도(2016~2025년)로 관측지별 주간 하루 기온곡선을 추정합니다. 관측지별 실제 사용 기간은 다를 수 있습니다.
+- 같은 주에는 동일한 24시간 대표곡선을 사용하고 다음 주에는 다음 주 곡선을 적용합니다.
+- 회귀계수와 곡선은 내부 계산용으로만 사용합니다. 한파를 포함한 실제 기온 변동까지 재현하지는 않습니다.
+- 선택 관측지 자료 대신 한국어 농업기상 CSV 또는 datetime,temp_mean 형식의 한 관측지 자료를 업로드할 수 있습니다.
 
 ### 2. 난방부하 산출 구조
-- 기본 구조: `외피면적 × U값 × (목표온도 - 외기온) × 가온시간`
-- 기밀도 계수는 틈새바람과 누기로 인한 추가 난방부하를 반영하기 위한 보정값입니다.
-- 방풍벽 계수는 온실 양쪽 방풍벽이 외부 바람 노출을 완화하는 효과를 반영하기 위한 보정값입니다.
-- 외피면적은 아치형 지붕, 측벽, 마구리 면적을 근사 계산합니다.
+- 사용자가 지정한 가온 가능시간의 각 1시간에 대해 양의 온도차만 합산합니다.
+- 유효 열량(kWh) = 외피면적(㎡) × U(W/㎡·K) × 양의 온도차(℃) × 1시간 ÷ 1000 × 기밀도·방풍벽 계수.
+- 열량을 연료 열량(kWh/단위)·효율로 나눈 뒤 단가를 곱합니다. 경유 8,500kcal/L는 860kcal/kWh로 환산합니다.
+- 기존 일최저기온을 하루 14시간 적용하던 방식과 다릅니다. 시간별 기온과 단위 환산을 함께 반영하므로 이전 난방비와 직접 같은 값이 나오지 않습니다.
+- 외피면적·U값·기밀도·방풍벽은 근사·가정값이며 실측 난방비와 별도 검증이 필요합니다.
 
 ### 3. 에너지 기준
 - 면세유: 발열량 8,500kcal/L, 효율 85% 가정

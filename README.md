@@ -46,4 +46,4 @@ APP_URL = "https://내-앱-주소.streamlit.app"
 
 ## 별도 후속 버전
 
-등록 신청 당시 버전과 기존 실행 경로를 유지하는 독립 후속 앱 v0.5.0은 [releases/v0.5](releases/v0.5/README.md)에 있습니다. 새 앱으로 배포할 때 `releases/v0.5/app.py`를 사용합니다.
+등록 신청 당시 버전과 기존 실행 경로를 유지하는 독립 후속 앱 v0.6.0 (기존 배포 경로 유지)은 [releases/v0.5](releases/v0.5/README.md)에 있습니다. 새 앱으로 배포할 때 `releases/v0.5/app.py`를 사용합니다.

@@ -5,7 +5,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from view3d import greenhouse_component
 
-APP_VERSION = '0.5.0'
+APP_VERSION = '0.6.0'
 APP_TITLE = '무화과 시설재배 경영의사결정지원시스템'
 st.set_page_config(page_title=f'{APP_TITLE} v{APP_VERSION}',layout='wide')
 source=(Path(__file__).parent/'original_app.py').read_text(encoding='utf-8')
@@ -44,12 +44,12 @@ core.get_password = enhanced_password
 core.get_app_url = enhanced_app_url
 core.require_login()
 st.title(APP_TITLE)
-st.caption(f'후속 버전 v{APP_VERSION} · 연간 사인 기온모형 · 3D 온실')
-st.info('원본 겨울 모델의 기간은 11~2월입니다. 기본 수량·단가는 현장 근거를 확인해 변경하세요.')
+st.caption(f'후속 버전 v{APP_VERSION} · 주간·시간별 기온모형 · 3D 온실')
+st.info('겨울 분석은 선택 연도의 11월~다음 해 2월입니다. 관측지와 가온 시작 시각·시간을 확인하세요.')
 submit,values=core.collect_inputs()
-with st.sidebar.expander('기상 CSV 형식 예시'):
+with st.sidebar.expander('시간별 기상 CSV 형식 예시'):
     st.caption('예시는 합성자료입니다. 실제 분석에는 관측자료로 교체하세요.')
-    st.download_button('예시 CSV 다운로드', (Path(__file__).parent/'examples'/'climate_csv_template.csv').read_bytes(),
+    st.download_button('예시 CSV 다운로드', (Path(__file__).parent/'examples'/'hourly_climate_example.csv').read_bytes(),
                        file_name='synthetic_climate_example.csv', mime='text/csv')
 if submit:
     st.session_state['enh_last_analysis']=values.copy()

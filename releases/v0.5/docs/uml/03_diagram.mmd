@@ -1,28 +1,21 @@
 sequenceDiagram
     actor User
     participant UI
-    participant CsvParser
-    participant Regression
-    participant Heating
+    participant Weather
+    participant Heat
     participant Report
-    User->>UI: 조건 입력 후 분석 실행
-    UI->>CsvParser: climate_params_from_csv
-    alt CSV 있음
-        CsvParser->>CsvParser: 지역 추출과 유효 날짜별 집계
-        CsvParser->>Regression: fit_climate_curve
-        Regression-->>UI: A B C D 및 적합 정보
-    else CSV 없음
-        UI->>Regression: default_climate_model
-        Regression-->>UI: 기존 가정곡선의 연간식 근사
-    end
-    alt CSV 오류
-        UI-->>User: 오류 표시 및 분석 중단
+    User->>UI: 관측지·작기·가온시간 지정
+    UI->>Weather: 내장 계수 또는 시간별 CSV 사용
+    Weather->>Weather: CSV이면 전처리 및 주별 회귀
+    Weather-->>UI: 주별 모형 또는 오류
+    alt 자료 부족
+        UI-->>User: 분석 중단 및 오류 표시
     else 유효한 모형
-        UI->>Heating: calculate_profit_summary
-        Heating->>Heating: winter_analysis의 날짜별 기온·난방비
-        Heating-->>UI: 계절 및 연간 경영수지
-        UI->>Report: 경영수지 표시
-        UI->>Heating: 같은 모형으로 민감도 분석
-        Heating-->>Report: 조건별 비교 결과
-        Report-->>User: 리포트 표시
+        UI->>Heat: 경영분석 및 민감도 계산
+        Heat->>Weather: 날짜·시각별 기온 평가
+        Weather-->>Heat: 가온 허용시간의 기온
+        Heat->>Heat: 양의 온도차 및 W에서 kWh 환산
+        Heat->>Heat: 연료비 및 전기 기본요금 계산
+        Heat-->>Report: 경영수지 및 시나리오 결과
+        Report-->>User: 경영 리포트 표시
     end

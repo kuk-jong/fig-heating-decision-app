@@ -1,17 +1,17 @@
 flowchart TD
-    request["분석 실행"] --> hasCsv{"CSV 있음"}
+    request["분석 실행"] --> hasCsv{"시간별 CSV 있음"}
     hasCsv -->|"예"| validate["필수 컬럼 및 선택 지역 검증"]
-    validate --> clean["무효 행 제외 및 중복일 평균"]
-    clean --> eligible{"관측일·계절 범위·행렬 조건 충족"}
+    validate --> clean["무효 행 제외 및 중복 시간 평균"]
+    clean --> eligible{"필요 주차별 24시간과 관측수 충족"}
     validate -->|"오류"| stop["오류 표시 및 분석 중단"]
     eligible -->|"아니오"| stop
     eligible -->|"예"| regression["절편 sin cos 최소제곱 회귀"]
-    regression --> model["A B C D 모형"]
-    hasCsv -->|"아니오"| fallback["내장 가정곡선의 연간식 근사"]
+    regression --> model["주차별 24시간 기온모형"]
+    hasCsv -->|"아니오"| fallback["선택 관측지의 내장 주별 모형"]
     fallback --> model
-    model --> daily["겨울 날짜별 외기온 T(x)"]
-    daily --> heat["양의 온도차 및 14시간 가온 가정"]
-    heat --> cost["연료효율·단가·기밀도·방풍벽 보정"]
+    model --> daily["작기 날짜와 시각별 T_w(h)"]
+    daily --> heat["가온 허용시간의 양의 온도차"]
+    heat --> cost["W에서 kWh 환산 및 효율·연료단가"]
     cost --> profit["매출·경영비·감가상각과 손익 계산"]
     model --> sensitivity["같은 모형으로 민감도 비교"]
     profit --> report["리포트"]
