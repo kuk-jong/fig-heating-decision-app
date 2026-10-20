@@ -35,11 +35,13 @@ def enhanced_password():
         return str(st.secrets.get('APP_PASSWORD', '1234'))
     except FileNotFoundError:
         return '1234'
+DEFAULT_DEPLOYED_APP_URL = "https://kuk-jong-fig-heating-decision-app-releasesv0-5app-codexa-oajica.streamlit.app/"
+
 def enhanced_app_url():
     try:
-        return str(st.secrets.get('APP_URL', '')).strip()
+        return str(st.secrets.get('APP_URL', '')).strip() or DEFAULT_DEPLOYED_APP_URL
     except FileNotFoundError:
-        return ''
+        return DEFAULT_DEPLOYED_APP_URL
 core.get_password = enhanced_password
 core.get_app_url = enhanced_app_url
 core.require_login()

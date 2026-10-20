@@ -656,7 +656,7 @@ def normalize_inputs(values: dict) -> dict:
     normalized = values.copy()
     normalized.setdefault("side_wing_level", "양쪽 방풍벽 (표준, 0.94)")
     normalized.setdefault("side_wing_width", 1.5)
-    normalized.setdefault("airtightness_level", "양호 (표준, 1.00)")
+    normalized.setdefault("airtightness_level", "취약 (누기 많음, 1.25)")
     normalized.setdefault("insul_type", "다겹보온커튼 (U=2.0)")
     normalized.setdefault("energy_source", "면세유(경유)")
     normalized.setdefault("winter_enabled", True)
@@ -828,7 +828,7 @@ def collect_inputs() -> tuple[bool, dict]:
                 airtightness_level = st.selectbox(
                     "온실 기밀도",
                     list(AIR_TIGHTNESS_LEVELS.keys()),
-                    index=1,
+                    index=list(AIR_TIGHTNESS_LEVELS).index("취약 (누기 많음, 1.25)"),
                     help="기밀도가 낮을수록 틈새바람과 누기로 난방부하가 증가한다고 가정합니다.",
                 )
 

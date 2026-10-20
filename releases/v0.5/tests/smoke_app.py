@@ -11,6 +11,10 @@ a.text_input[0].set_value('1234')
 next(b for b in a.button if b.label=='로그인').click();a.run()
 assert not a.exception,[e.message for e in a.exception]
 assert any('v0.6.3' in c.value for c in a.caption)
+assert next(s for s in a.selectbox if s.label=='온실 기밀도').value == '취약 (누기 많음, 1.25)'
+assert next(t for t in a.text_input if t.label=='앱 URL').value.startswith('https://kuk-jong-fig-heating-decision-app-')
+assert any(b.label=='QR 코드 다운로드' for b in a.get('download_button'))
+assert len(a.get('imgs')) >= 1
 next(b for b in a.button if '연간 분석 실행' in b.label).click();a.run()
 assert not a.exception,[e.message for e in a.exception]
 assert len(a.metric)==13
@@ -24,7 +28,7 @@ next(s for s in a.selectbox if s.label=='전남 시·군 선택').set_value('해
 next(b for b in a.button if '연간 분석 실행' in b.label).click();a.run()
 assert not any(s.label=='가온 가능시간 (시간/일)' for s in a.slider)
 assert not any(s.label=='가온 시작 시각' for s in a.selectbox)
-assert any('야간 18:00~다음 날 08:00 난방' in c.value for c in a.caption)
+assert any('야간 18:00부터 다음 날 08:00까지 난방' in c.value for c in a.caption)
 saved=a.session_state['enh_last_analysis'].copy()
 saved['climate_file']=BytesIO((APP_DIR/'examples/hourly_climate_example.csv').read_bytes())
 a.session_state['enh_last_analysis']=saved;a.run()

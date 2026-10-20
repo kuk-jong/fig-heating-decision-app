@@ -10,7 +10,8 @@
 - 기존 3D판 `streamlit-enhanced/`도 main 기준 코드를 유지한다.
 - 새 앱은 `releases/v0.5/app.py`에서 실행한다. 독립 `original_app.py`, `view3d.py`, JavaScript, 패키지 목록과 예시 CSV를 포함한다.
 - 현재 main 기반 기존 파일을 바꾸지 않은 상태로 새 앱을 별도 Streamlit 서비스에 배포할 수 있다.
-- 비밀번호와 QR 주소는 새 서비스의 APP_PASSWORD·APP_URL로 설정한다. 기본 비밀번호는 1234이다.
+- 비밀번호와 QR 주소는 새 서비스의 APP_PASSWORD·APP_URL로 설정한다. 기본 비밀번호는 1234이다. APP_URL이 없거나 비어 있으면 현재 후속 앱 배포 주소로 QR코드를 표시한다.
+- 과수연구소 기본 설정의 온실 기밀도는 취약(누기 많음, 계수 1.25)이며 사용자가 변경할 수 있다.
 
 ## 2. 현재 구현과 계산
 
