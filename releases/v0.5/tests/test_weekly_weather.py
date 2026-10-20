@@ -90,16 +90,33 @@ class WeeklyWeatherTests(unittest.TestCase):
         ns={'np':np,'pd':pd,'math':math,'weekly_weather':w}
         exec(compile(ast.Module(body=nodes,type_ignores=[]),'<core>','exec'),ns)
         args=dict(surface_area=1000,u_val=2,target_temp=10,unit_fuel_cost=65.9,energy_source='농사용 전기',
-                  climate_model={'model':model(5),'start_hour':18,'duration_hours':14,'winter_start_year':2026},
+                  climate_model={'model':model(5),'start_hour':0,'duration_hours':24,'winter_start_year':2026},
                   winter_total_yield=0,market_price=30000,airtightness_factor=1,side_wing_factor_value=1)
         revenue,cost,hours=ns['weekly_winter_analysis'](**args)
-        # App wrapper uses all 24 hours even when old session values say 14.
-        self.assertEqual(cost,int(28800/.98*65.9+10/.98*1150*4))
-        self.assertEqual(hours,24)
+        # App wrapper uses the fixed night window even when old session values say 24 hours.
+        self.assertEqual(cost,int(16800/.98*65.9+10/.98*1150*4))
+        self.assertEqual(hours,14)
         args.update(energy_source='면세유(경유)',unit_fuel_cost=1100)
-        self.assertEqual(ns['weekly_winter_analysis'](**args)[1],int(28800/(8500/860*.85)*1100))
+        self.assertEqual(ns['weekly_winter_analysis'](**args)[1],int(16800/(8500/860*.85)*1100))
         args['climate_model']['winter_start_year']=2027
-        self.assertEqual(ns['weekly_winter_analysis'](**args)[1],int(29040/(8500/860*.85)*1100))
+        self.assertEqual(ns['weekly_winter_analysis'](**args)[1],int(16940/(8500/860*.85)*1100))
+
+    def test_app_excludes_daytime_and_only_heats_cold_night_hours(self):
+        import ast, math
+        tree=ast.parse((ROOT/'original_app.py').read_text(encoding='utf-8'))
+        nodes=[n for n in tree.body if isinstance(n,ast.FunctionDef) or isinstance(n,ast.Assign) and all(isinstance(t,ast.Name) for t in n.targets)]
+        ns={'np':np,'pd':pd,'math':math,'weekly_weather':w}
+        exec(compile(ast.Module(body=nodes,type_ignores=[]),'<core>','exec'),ns)
+        args=dict(surface_area=1000,u_val=2,target_temp=5,unit_fuel_cost=65.9,energy_source='농사용 전기',
+                  climate_model={'model':model(10,cosine=10),'winter_start_year':2026},
+                  winter_total_yield=0,market_price=0,airtightness_factor=1,side_wing_factor_value=1)
+        # Noon is cold, but all night hours exceed 5 C: daytime heating is excluded.
+        _,cost,hours=ns['weekly_winter_analysis'](**args)
+        self.assertEqual(cost,0);self.assertEqual(hours,0)
+        args['target_temp']=15
+        _,cost,hours=ns['weekly_winter_analysis'](**args)
+        self.assertGreater(cost,0)
+        self.assertGreater(hours,0);self.assertLess(hours,14)
 
     def test_upload_declared_county_must_match(self):
         csv=b'region,datetime,temp_mean\nother,2024-01-01 00:00,1'

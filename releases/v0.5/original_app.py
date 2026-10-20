@@ -503,7 +503,7 @@ def weekly_winter_analysis(surface_area, u_val, target_temp, unit_fuel_cost, ene
     year = int(climate_model['winter_start_year'])
     dates = pd.date_range(f'{year}-11-01', pd.Timestamp(year+1, 3, 1)-pd.Timedelta(days=1))
     load = weekly_weather.heating_energy(
-        climate_model['model'], dates, 0, 24,
+        climate_model['model'], dates, weekly_weather.NIGHT_START_HOUR, weekly_weather.NIGHT_DURATION_HOURS,
         target_temp, surface_area, u_val, airtightness_factor, side_wing_factor_value)
     fuel = FUEL_SETTINGS[energy_source]
     input_units = load['heat_kwh'] / ((fuel['calorific']/860)*fuel['efficiency'])
@@ -844,7 +844,7 @@ def collect_inputs() -> tuple[bool, dict]:
                 st.info('해당 지역의 내장 시간별 관측자료가 없습니다. 아래에서 해당 지역 CSV를 업로드하세요.')
             winter_start_year = st.number_input('겨울 작기 시작연도', min_value=2010, max_value=2100,
                                                 value=int(pd.Timestamp.now(tz='Asia/Seoul').year), step=1)
-            st.caption('가온시간을 고정하지 않습니다. 하루 24시간 중 외기가 목표온도보다 낮은 시간의 난방부하를 합산합니다.')
+            st.caption('야간 18:00~다음 날 08:00만 계산합니다. 이 14시간 중 외기가 목표온도보다 낮은 시간에만 난방부하가 발생합니다.')
 
             submit_btn = st.form_submit_button(
                 label="🚜 연간 분석 실행",
@@ -957,7 +957,7 @@ def show_results(values: dict) -> None:
     st.header(f"📊 연간 경영 분석 리포트 ({values['region_name']})")
     st.caption(f"기상자료 기준: {climate_source}")
     if values.get("winter_enabled", True):
-        st.caption(f"분석 기간: {year}년 11월~{year+1}년 2월 · 24시간 온도기준 난방")
+        st.caption(f"분석 기간: {year}년 11월~{year+1}년 2월 · 야간 18:00~다음 날 08:00 난방")
         st.caption("주별 평균적인 하루 기온을 사용하는 시나리오입니다. 한파와 실제 날씨 변동은 평활화될 수 있습니다.")
 
     st.subheader("🏠 온실/모델 요약")
@@ -968,7 +968,7 @@ def show_results(values: dict) -> None:
     c3.metric("보온 U값", f"{U_VALUES[values['insul_type']]:.1f} W/(㎡·K)")
     c4.metric("기밀도 계수", f"{AIR_TIGHTNESS_LEVELS[values['airtightness_level']]:.2f}")
     st.caption(
-        f"평균 가온시간: {summary['avg_heating_hours']:.1f} 시간/일 / "
+        f"평균 야간 난방 필요시간: {summary['avg_heating_hours']:.1f} 시간/일 / "
         f"방풍벽 계수: {side_wing_factor(values['side_wing_level'], values['side_wing_width']):.2f}"
     )
     st.markdown(
@@ -1113,7 +1113,9 @@ def show_references() -> None:
 - 선택 관측지 자료 대신 한국어 농업기상 CSV 또는 datetime,temp_mean 형식의 한 관측지 자료를 업로드할 수 있습니다.
 
 ### 2. 난방부하 산출 구조
-- 별도 가온시간 제한 없이 하루 24시간의 각 1시간에 대해 양의 온도차만 합산합니다. 난방시간은 온도차에 의해 계산되는 결과입니다.
+- 일사에 의한 주간 승온을 직접 계산하지 않으므로 야간 18:00~다음 날 08:00의 14시간만 난방 계산 대상으로 둡니다.
+- 이 시간대의 각 1시간에 대해 양의 온도차만 합산합니다. 실제 난방 필요시간은 하루 0~14시간으로 계산되며 14시간 연속 가동을 강제하지 않습니다.
+- 주간 난방은 제외하므로 흐린 날·한파의 주간 난방비는 과소 추정할 수 있습니다.
 - 유효 열량(kWh) = 외피면적(㎡) × U(W/㎡·K) × 양의 온도차(℃) × 1시간 ÷ 1000 × 기밀도·방풍벽 계수.
 - 열량을 연료 열량(kWh/단위)·효율로 나눈 뒤 단가를 곱합니다. 경유 8,500kcal/L는 860kcal/kWh로 환산합니다.
 - 기존 일최저기온을 하루 14시간 적용하던 방식과 다릅니다. 시간별 기온과 단위 환산을 함께 반영하므로 이전 난방비와 직접 같은 값이 나오지 않습니다.

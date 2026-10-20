@@ -10,7 +10,7 @@ assert not a.exception,[e.message for e in a.exception]
 a.text_input[0].set_value('1234')
 next(b for b in a.button if b.label=='로그인').click();a.run()
 assert not a.exception,[e.message for e in a.exception]
-assert any('v0.6.2' in c.value for c in a.caption)
+assert any('v0.6.3' in c.value for c in a.caption)
 next(b for b in a.button if '연간 분석 실행' in b.label).click();a.run()
 assert not a.exception,[e.message for e in a.exception]
 assert len(a.metric)==13
@@ -24,7 +24,7 @@ next(s for s in a.selectbox if s.label=='전남 시·군 선택').set_value('해
 next(b for b in a.button if '연간 분석 실행' in b.label).click();a.run()
 assert not any(s.label=='가온 가능시간 (시간/일)' for s in a.slider)
 assert not any(s.label=='가온 시작 시각' for s in a.selectbox)
-assert any('24시간 온도기준 난방' in c.value for c in a.caption)
+assert any('야간 18:00~다음 날 08:00 난방' in c.value for c in a.caption)
 saved=a.session_state['enh_last_analysis'].copy()
 saved['climate_file']=BytesIO((APP_DIR/'examples/hourly_climate_example.csv').read_bytes())
 a.session_state['enh_last_analysis']=saved;a.run()
@@ -39,5 +39,5 @@ assert not a.exception and len(a.error)==1 and len(a.metric)==0
 # Summer-only analysis does not require winter weather.
 a.session_state['enh_last_analysis']={**saved,'climate_file':None,'winter_enabled':False};a.run()
 assert not a.exception and len(a.metric)>0
-print(json.dumps({'version':'0.6.2','bundled_weather':'pass','thermostatic_24h':'pass','hourly_csv':'pass',
+print(json.dumps({'version':'0.6.3','bundled_weather':'pass','night_thermostatic_14h':'pass','hourly_csv':'pass',
                   'rerun':'pass','invalid_csv':'pass','unavailable_county':'pass','summer_only':'pass'},ensure_ascii=False))

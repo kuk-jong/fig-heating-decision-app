@@ -10,7 +10,7 @@ flowchart TD
     hasCsv -->|"아니오"| fallback["선택 관측지의 내장 주별 모형"]
     fallback --> model
     model --> daily["작기 날짜와 시각별 T_w(h)"]
-    daily --> heat["24시간의 양의 온도차"]
+    daily --> heat["야간 시간대의 양의 온도차"]
     heat --> cost["W에서 kWh 환산 및 효율·연료단가"]
     cost --> profit["매출·경영비·감가상각과 손익 계산"]
     model --> sensitivity["같은 모형으로 민감도 비교"]

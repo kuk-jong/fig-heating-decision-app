@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+NIGHT_START_HOUR = 18
+NIGHT_DURATION_HOURS = 14
 PERIOD_HOURS = 24.0
 OMEGA = 2 * np.pi / PERIOD_HOURS
 
