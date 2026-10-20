@@ -448,36 +448,6 @@ def climate_params_from_csv(uploaded_file, region_name: str) -> tuple[dict | Non
     return model, None
 
 
-def show_climate_model(model: dict) -> None:
-    with st.expander("외기온 추정식 · 회귀 결과", expanded=True):
-        st.latex(r"T(x)=A+B\sin(Cx+D)")
-        st.write(f"A = {model['A']:.4f} ℃, B = {model['B']:.4f} ℃, "
-                 f"C = {model['C']:.8f} rad/일, D = {model['D']:.4f} rad")
-        st.caption("주기 365.2425일 고정. x는 1월 1일부터의 연중 위치이며 윤년 길이를 보정합니다. "
-                   "A는 연간 곡선의 중심온도이며 겨울 평균온도와 다릅니다.")
-        if model.get("source") == "csv_regression":
-            st.write(f"관측일 {model['rows']:,}일 · 적합 RMSE {model['rmse']:.3f} ℃")
-            if model["r_squared"] is not None:
-                st.caption(f"적합 R² = {model['r_squared']:.3f} (학습자료 기준이며 예측 정확도 검증값이 아닙니다.)")
-            st.caption(f"관측 평균 {model['observed_mean']:.3f} ℃ / 같은 관측일의 적합 평균 {model['fitted_mean']:.3f} ℃")
-            if model["dropped_rows"] or model["duplicate_rows"]:
-                st.caption(f"유효하지 않은 행 {model['dropped_rows']}개 제외, 같은 날짜 중복 {model['duplicate_rows']}개는 일평균으로 통합했습니다.")
-            if model["months"] < 12 or model["rows"] < 30:
-                st.warning("계절 또는 관측일이 제한된 자료입니다. 연간 중심온도·진폭 추정이 불안정할 수 있으므로 여러 해의 연중 일별 자료를 권장합니다.")
-        else:
-            st.warning("관측자료 미적용: 기존 내장 가정곡선을 연간 사인식으로 근사한 값입니다. 관측 회귀 결과가 아니며, 실제 자료 CSV를 업로드해야 지역 기후를 반영합니다.")
-        dates = pd.date_range(WINTER_START, WINTER_END)
-        chart = pd.DataFrame({"날짜": dates, "추정 일최저기온(℃)": [simulated_min_temp(model, d) for d in dates]})
-        st.line_chart(chart.set_index("날짜"))
-        if model.get("source") == "csv_regression":
-            observations = model["observations"].copy()
-            observations["회귀 일최저기온(℃)"] = [simulated_min_temp(model, d) for d in observations["date"]]
-            observations = observations.rename(columns={"date": "날짜", "min_temp": "관측 일최저기온(℃)"})
-            st.line_chart(observations.set_index("날짜"))
-        st.caption("일최저기온의 계절적 추정곡선으로, 특정 날짜의 실제 날씨나 예보가 아닙니다. "
-                   "일최저기온을 가온시간 14시간의 외기로 사용하는 기존 가정은 유지됩니다.")
-
-
 def winter_analysis(
     surface_area: float,
     u_val: float,
@@ -909,7 +879,7 @@ def show_results(values: dict) -> None:
     values = normalize_inputs(values)
     region_info = default_climate_model(REGION_DATA[values["region_name"]])
     csv_region_info, climate_error = climate_params_from_csv(values.get("climate_file"), values["region_name"])
-    climate_source = "내장 가정곡선의 연간 사인식 근사(관측자료 아님)"
+    climate_source = "내장 기상 가정값(관측자료 미적용)"
     if csv_region_info:
         region_info = csv_region_info
         climate_source = f"업로드 CSV 기반({csv_region_info['years']}개년, {csv_region_info['rows']:,}행)"
@@ -932,7 +902,6 @@ def show_results(values: dict) -> None:
 
     st.header(f"📊 연간 경영 분석 리포트 ({values['region_name']})")
     st.caption(f"기상자료 기준: {climate_source}")
-    show_climate_model(region_info)
 
     st.subheader("🏠 온실/모델 요약")
     c1, c2 = st.columns(2)

@@ -9,7 +9,6 @@ flowchart TD
     regression --> model["A B C D 모형"]
     hasCsv -->|"아니오"| fallback["내장 가정곡선의 연간식 근사"]
     fallback --> model
-    model --> preview["계수·곡선·자료 경고"]
     model --> daily["겨울 날짜별 외기온 T(x)"]
     daily --> heat["양의 온도차 및 14시간 가온 가정"]
     heat --> cost["연료효율·단가·기밀도·방풍벽 보정"]
@@ -17,4 +16,3 @@ flowchart TD
     model --> sensitivity["같은 모형으로 민감도 비교"]
     profit --> report["리포트"]
     sensitivity --> report
-    preview --> report

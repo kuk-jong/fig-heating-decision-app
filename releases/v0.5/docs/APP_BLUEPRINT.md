@@ -16,7 +16,7 @@
 
 생산량·판매단가로 매출, 여름 경영비 비율, 겨울 난방비와 시설 감가상각, 계절별·연간 손익을 계산한다. 보온·목표온도·연료단가·기밀도·방풍벽 조건의 민감도를 비교한다. 3D 식재·설비는 예시이며 생산량·투자비 계산과 독립이다.
 
-기온은 `T(x)=A+B sin(Cx+D)`이고 `C=2π/365.2425`로 고정한다. CSV의 선택 지역 일별 자료로 절편·사인·코사인 회귀를 수행한다. 관측자료가 없으면 기존 가정곡선을 연간식으로 근사하고 경고한다. 잘못된 CSV는 분석을 중단한다. 외기는 일최저기온, 가온시간은 양의 온도차에 대해 14시간인 기존 가정이다.
+기온은 `T(x)=A+B sin(Cx+D)`이고 `C=2π/365.2425`로 고정한다. CSV의 선택 지역 일별 자료로 절편·사인·코사인 회귀를 수행한다. 관측자료가 없으면 기존 가정곡선을 연간식으로 근사하고 경고한다. 잘못된 CSV는 분석을 중단한다. 회귀계수·적합도·기온곡선은 내부 계산용으로만 유지하고 결과 화면에 표시하지 않는다. 외기는 일최저기온, 가온시간은 양의 온도차에 대해 14시간인 기존 가정이다.
 
 자세한 계수·데이터·검증 명세: [CLIMATE_MODEL.md](CLIMATE_MODEL.md).
 
@@ -49,7 +49,6 @@ flowchart LR
     user --> uploadCsv["일별 관측 CSV 업로드"]
     user --> sample["합성 예시 CSV 다운로드"]
     user --> analyze["연간 경영분석 실행"]
-    analyze --> curve["기온 계수·곡선·적합도 확인"]
     analyze --> income["계절·연간 매출과 비용 확인"]
     analyze --> view["3D 온실 확인"]
     analyze --> sensitivity["조건별 민감도 비교"]
@@ -190,7 +189,7 @@ sequenceDiagram
         UI->>Heating: calculate_profit_summary
         Heating->>Heating: winter_analysis의 날짜별 기온·난방비
         Heating-->>UI: 계절 및 연간 경영수지
-        UI->>Report: 계수·곡선·경영수지 표시
+        UI->>Report: 경영수지 표시
         UI->>Heating: 같은 모형으로 민감도 분석
         Heating-->>Report: 조건별 비교 결과
         Report-->>User: 리포트 표시
@@ -231,7 +230,6 @@ flowchart TD
     regression --> model["A B C D 모형"]
     hasCsv -->|"아니오"| fallback["내장 가정곡선의 연간식 근사"]
     fallback --> model
-    model --> preview["계수·곡선·자료 경고"]
     model --> daily["겨울 날짜별 외기온 T(x)"]
     daily --> heat["양의 온도차 및 14시간 가온 가정"]
     heat --> cost["연료효율·단가·기밀도·방풍벽 보정"]
@@ -239,7 +237,6 @@ flowchart TD
     model --> sensitivity["같은 모형으로 민감도 비교"]
     profit --> report["리포트"]
     sensitivity --> report
-    preview --> report
 ```
 
 ## 9. 검증·운영 경계

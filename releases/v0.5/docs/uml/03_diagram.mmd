@@ -21,7 +21,7 @@ sequenceDiagram
         UI->>Heating: calculate_profit_summary
         Heating->>Heating: winter_analysis의 날짜별 기온·난방비
         Heating-->>UI: 계절 및 연간 경영수지
-        UI->>Report: 계수·곡선·경영수지 표시
+        UI->>Report: 경영수지 표시
         UI->>Heating: 같은 모형으로 민감도 분석
         Heating-->>Report: 조건별 비교 결과
         Report-->>User: 리포트 표시

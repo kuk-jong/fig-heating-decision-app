@@ -50,8 +50,8 @@ T(date) = A + B sin(C x(date) + D)
 
 | 조건 | 모형 | 화면 표시 |
 |---|---|---|
-| 유효한 CSV | 일별 관측자료 OLS 회귀 | 관측일 수·계수·RMSE·R²·곡선 |
-| CSV 없음 | 기존 base/amp 가정곡선의 연간식 근사 | 관측자료 미적용 경고 |
+| 유효한 CSV | 일별 관측자료 OLS 회귀 | CSV 사용 여부·기간 요약 (계수·RMSE·R²는 내부 계산값) |
+| CSV 없음 | 기존 base/amp 가정곡선의 연간식 근사 | 관측자료 미적용 출처 표시 |
 | 잘못된 CSV | 모형을 적용하지 않음 | 오류 및 분석 중단 |
 
 내장 지역 계수는 새 관측자료로 재추정하지 않았다. 이전 가정곡선에서 생성한 합성값에 회귀한 것이므로 기존 가정의 편향까지 해소했다고 주장하지 않는다. 자료 없는 상태에서 관측 기반 계수를 임의로 만들지 않는다.
@@ -79,11 +79,10 @@ T(date) = A + B sin(C x(date) + D)
 | `default_climate_model` | 관측자료가 없는 내장 가정곡선 근사 | 404 |
 | `climate_params_from_csv` | CSV 검증·정제·일별 집계·회귀 | 415 |
 | `simulated_min_temp` | A+B sin(Cx+D)로 날짜별 기온 계산 | 370 |
-| `winter_analysis` | 같은 모형을 적용한 일별 난방비 계산 | 481 |
-| `calculate_profit_summary` | 계절·연간 수지 통합 | 529 |
-| `sensitivity_table` | 동일 기온모형으로 조건별 민감도 | 583 |
-| `show_climate_model` | 계수·적합도·기온곡선 표시 | 451 |
-| `show_results` | 자료 선택과 오류 처리·리포트 연결 | 908 |
+| `winter_analysis` | 같은 모형을 적용한 일별 난방비 계산 | 451 |
+| `calculate_profit_summary` | 계절·연간 수지 통합 | 499 |
+| `sensitivity_table` | 동일 기온모형으로 조건별 민감도 | 553 |
+| `show_results` | 자료 선택과 오류 처리·리포트 연결 | 878 |
 
 계산 본문: `original_app.py`. 이 버전은 기존 앱 파일을 런타임에 참조하지 않는다.
 화면 진입점은 같은 폴더의 `app.py`, 3D 컴포넌트는 `view3d.py`이다.
@@ -92,7 +91,8 @@ T(date) = A + B sin(C x(date) + D)
 
 - 수치 단위검사: `python -m unittest discover -s tests -v` — 8개 통과.
 - Streamlit AppTest: 후속 버전 로그인·기본 분석, CSV 회귀·재실행·오류 시 중단 확인.
-- 운영 반영 후: 선택 지역의 실제 연중 CSV 업로드 → 계수·기온곡선 확인 → 같은 조건 난방비 비교 → 민감도 표 확인.
+- 운영 반영 후: 선택 지역의 실제 연중 CSV 업로드 → 자료 출처 확인 → 같은 조건 난방비 비교 → 민감도 표 확인.
+- 회귀계수·적합도·기온곡선은 내부 계산용이며 결과 화면에 노출하지 않는다.
 - 등록 자료는 실제 제출하려는 버전과 맞춘다. 이번 수정본의 복제물은 과거 v0.4 제출본과 구분한다.
 
 UML 및 처리 흐름: [APP_BLUEPRINT.md](APP_BLUEPRINT.md).
