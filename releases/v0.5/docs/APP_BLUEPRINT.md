@@ -1,6 +1,6 @@
 # 무화과 시설재배 경영의사결정지원시스템 — 후속 버전 설계
 
-버전: 0.6.0 / 개정일: 2026-10-21.
+버전: 0.6.1 / 개정일: 2026-10-21.
 `releases/v0.5`의 독립 앱만 설명한다. 등록 신청 당시 제출본이나 기존 운영 앱을 대체한 문서가 아니다.
 이번 구현·문서·UML 갱신에는 생성형 AI를 활용했다.
 
@@ -16,7 +16,7 @@
 
 생산량·판매단가로 매출, 여름 경영비 비율, 겨울 난방비와 시설 감가상각, 계절별·연간 손익을 계산한다. 보온·목표온도·연료단가·기밀도·방풍벽 조건의 민감도를 비교한다. 3D 식재·설비는 예시이며 생산량·투자비 계산과 독립이다.
 
-2016~2025년 시간별 관측자료로 관측지·주차별 24시간 대표곡선을 적합한다. 같은 주는 같은 함수를 적용하고 다음 주에 계수를 변경한다. 사용자가 정한 가온 허용시간에 시간별 양의 온도차만 합산하며, U의 W 단위를 kWh로 환산한다. 계수·기온곡선은 내부 계산용이다. 자료가 없거나 부족하면 분석을 중단하며 다른 지역 자료로 대체하지 않는다.
+2016~2025년 시간별 관측자료로 관측지·주차별 24시간 대표곡선을 적합한다. 같은 주는 같은 함수를 적용하고 다음 주에 계수를 변경한다. 하루 24시간 중 시간별 양의 온도차만 합산하며, U의 W 단위를 kWh로 환산한다. 계수·기온곡선은 내부 계산용이다. 자료가 없거나 부족하면 분석을 중단하며 다른 지역 자료로 대체하지 않는다.
 
 자세한 계수·데이터·검증 명세: [CLIMATE_MODEL.md](CLIMATE_MODEL.md).
 
@@ -31,7 +31,7 @@ releases/v0.5/
   requirements.txt
   weekly_weather.py      # 주차별 시간기온·열부하
   data/weekly_weather.json # 20개 관측지별 52주 계수 (원자료 미포함)
-  VERSION                # 0.6.0
+  VERSION                # 0.6.1
   run_app.bat
   .streamlit/secrets.toml.example
   examples/hourly_climate_example.csv  # 합성 예시, 관측자료 아님
@@ -50,7 +50,7 @@ flowchart LR
     user --> inputFarm["생산·경영·온실 조건 입력"]
     user --> uploadCsv["시간별 관측 CSV 업로드"]
     user --> sample["합성 예시 CSV 다운로드"]
-    user --> schedule["관측지·시작 시각·가온시간 선택"]
+    user --> schedule["관측지·작기·설정온도 입력"]
     user --> analyze["연간 경영분석 실행"]
     analyze --> income["계절·연간 매출과 비용 확인"]
     analyze --> view["3D 온실 확인"]
@@ -133,8 +133,7 @@ classDiagram
     }
 
     class HeatingSchedule {
-        +int start_hour
-        +int duration_hours
+        +float target_temp
         +int winter_start_year
     }
 
@@ -182,7 +181,7 @@ sequenceDiagram
     participant Weather
     participant Heat
     participant Report
-    User->>UI: 관측지·작기·가온시간 지정
+    User->>UI: 관측지·작기·설정온도 지정
     UI->>Weather: 내장 계수 또는 시간별 CSV 사용
     Weather->>Weather: CSV이면 전처리 및 주별 회귀
     Weather-->>UI: 주별 모형 또는 오류
@@ -191,7 +190,7 @@ sequenceDiagram
     else 유효한 모형
         UI->>Heat: 경영분석 및 민감도 계산
         Heat->>Weather: 날짜·시각별 기온 평가
-        Weather-->>Heat: 가온 허용시간의 기온
+        Weather-->>Heat: 하루 24시간의 기온
         Heat->>Heat: 양의 온도차 및 W에서 kWh 환산
         Heat->>Heat: 연료비 및 전기 기본요금 계산
         Heat-->>Report: 경영수지 및 시나리오 결과
@@ -206,7 +205,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     entry["releases/v0.5/app.py"] --> core["동일 폴더의 original_app.py 동적 로딩"]
-    entry --> version["후속 버전 0.6.0 표시"]
+    entry --> version["후속 버전 0.6.1 표시"]
     entry --> config["새 서비스의 APP_PASSWORD 및 APP_URL"]
     core --> regress["CSV 검증 및 weekly_weather.py 주별 시간기온"]
     regress --> numpy["NumPy lstsq"]
@@ -235,7 +234,7 @@ flowchart TD
     hasCsv -->|"아니오"| fallback["선택 관측지의 내장 주별 모형"]
     fallback --> model
     model --> daily["작기 날짜와 시각별 T_w(h)"]
-    daily --> heat["가온 허용시간의 양의 온도차"]
+    daily --> heat["24시간의 양의 온도차"]
     heat --> cost["W에서 kWh 환산 및 효율·연료단가"]
     cost --> profit["매출·경영비·감가상각과 손익 계산"]
     model --> sensitivity["같은 모형으로 민감도 비교"]

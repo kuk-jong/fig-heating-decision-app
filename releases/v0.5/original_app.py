@@ -503,7 +503,7 @@ def weekly_winter_analysis(surface_area, u_val, target_temp, unit_fuel_cost, ene
     year = int(climate_model['winter_start_year'])
     dates = pd.date_range(f'{year}-11-01', pd.Timestamp(year+1, 3, 1)-pd.Timedelta(days=1))
     load = weekly_weather.heating_energy(
-        climate_model['model'], dates, climate_model['start_hour'], climate_model['duration_hours'],
+        climate_model['model'], dates, 0, 24,
         target_temp, surface_area, u_val, airtightness_factor, side_wing_factor_value)
     fuel = FUEL_SETTINGS[energy_source]
     input_units = load['heat_kwh'] / ((fuel['calorific']/860)*fuel['efficiency'])
@@ -832,7 +832,7 @@ def collect_inputs() -> tuple[bool, dict]:
                     help="기밀도가 낮을수록 틈새바람과 누기로 난방부하가 증가한다고 가정합니다.",
                 )
 
-            st.markdown("**5. 시간별 기상자료와 가온시간**")
+            st.markdown("**5. 시간별 기상자료**")
             county = region_name.split()[0]
             catalog = weekly_weather.load_catalog()
             station_options = [label for label, info in catalog['sites'].items() if info['county'] == county]
@@ -842,12 +842,9 @@ def collect_inputs() -> tuple[bool, dict]:
             else:
                 weather_station = f'{county} 업로드 관측지'
                 st.info('해당 지역의 내장 시간별 관측자료가 없습니다. 아래에서 해당 지역 CSV를 업로드하세요.')
-            heating_start_hour = st.selectbox('가온 시작 시각', list(range(24)), index=18, format_func=lambda h:f'{h:02d}:00')
-            heating_duration = st.slider('가온 가능시간 (시간/일)', 0, 24, 14)
             winter_start_year = st.number_input('겨울 작기 시작연도', min_value=2010, max_value=2100,
                                                 value=int(pd.Timestamp.now(tz='Asia/Seoul').year), step=1)
-            end_hour = (heating_start_hour + heating_duration) % 24
-            st.caption(f'가온 허용시간: {heating_start_hour:02d}:00부터 {heating_duration}시간, 종료 {end_hour:02d}:00. 이 시간 안에서 외기가 목표온도보다 낮을 때만 난방합니다.')
+            st.caption('가온시간을 고정하지 않습니다. 하루 24시간 중 외기가 목표온도보다 낮은 시간의 난방부하를 합산합니다.')
 
             submit_btn = st.form_submit_button(
                 label="🚜 연간 분석 실행",
@@ -911,8 +908,6 @@ def collect_inputs() -> tuple[bool, dict]:
         "airtightness_level": airtightness_level,
         "climate_file": climate_file,
         "weather_station": weather_station,
-        "heating_start_hour": heating_start_hour,
-        "heating_duration": heating_duration,
         "winter_start_year": int(winter_start_year),
     }
 
@@ -936,7 +931,6 @@ def show_results(values: dict) -> None:
             if model['county'] != values['region_name'].split()[0]:
                 raise ValueError('선택 시군과 관측지의 지역이 다릅니다. 관측지를 다시 선택하세요.')
             region_info = {'kind': 'weekly', 'model': model,
-                           'start_hour': values['heating_start_hour'], 'duration_hours': values['heating_duration'],
                            'winter_start_year': values['winter_start_year']}
             # Validate the whole requested winter before any results are displayed.
             year = region_info['winter_start_year']
@@ -963,7 +957,7 @@ def show_results(values: dict) -> None:
     st.header(f"📊 연간 경영 분석 리포트 ({values['region_name']})")
     st.caption(f"기상자료 기준: {climate_source}")
     if values.get("winter_enabled", True):
-        st.caption(f"분석 기간: {year}년 11월~{year+1}년 2월 · 가온 시작 {region_info['start_hour']:02d}:00 · 허용 {region_info['duration_hours']}시간/일")
+        st.caption(f"분석 기간: {year}년 11월~{year+1}년 2월 · 24시간 온도기준 난방")
         st.caption("주별 평균적인 하루 기온을 사용하는 시나리오입니다. 한파와 실제 날씨 변동은 평활화될 수 있습니다.")
 
     st.subheader("🏠 온실/모델 요약")
@@ -1119,7 +1113,7 @@ def show_references() -> None:
 - 선택 관측지 자료 대신 한국어 농업기상 CSV 또는 datetime,temp_mean 형식의 한 관측지 자료를 업로드할 수 있습니다.
 
 ### 2. 난방부하 산출 구조
-- 사용자가 지정한 가온 가능시간의 각 1시간에 대해 양의 온도차만 합산합니다.
+- 별도 가온시간 제한 없이 하루 24시간의 각 1시간에 대해 양의 온도차만 합산합니다. 난방시간은 온도차에 의해 계산되는 결과입니다.
 - 유효 열량(kWh) = 외피면적(㎡) × U(W/㎡·K) × 양의 온도차(℃) × 1시간 ÷ 1000 × 기밀도·방풍벽 계수.
 - 열량을 연료 열량(kWh/단위)·효율로 나눈 뒤 단가를 곱합니다. 경유 8,500kcal/L는 860kcal/kWh로 환산합니다.
 - 기존 일최저기온을 하루 14시간 적용하던 방식과 다릅니다. 시간별 기온과 단위 환산을 함께 반영하므로 이전 난방비와 직접 같은 값이 나오지 않습니다.

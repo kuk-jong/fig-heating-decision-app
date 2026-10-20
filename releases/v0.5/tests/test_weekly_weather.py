@@ -93,12 +93,13 @@ class WeeklyWeatherTests(unittest.TestCase):
                   climate_model={'model':model(5),'start_hour':18,'duration_hours':14,'winter_start_year':2026},
                   winter_total_yield=0,market_price=30000,airtightness_factor=1,side_wing_factor_value=1)
         revenue,cost,hours=ns['weekly_winter_analysis'](**args)
-        self.assertEqual(cost,int(16800/.98*65.9+10/.98*1150*4))
-        self.assertEqual(hours,14)
+        # App wrapper uses all 24 hours even when old session values say 14.
+        self.assertEqual(cost,int(28800/.98*65.9+10/.98*1150*4))
+        self.assertEqual(hours,24)
         args.update(energy_source='면세유(경유)',unit_fuel_cost=1100)
-        self.assertEqual(ns['weekly_winter_analysis'](**args)[1],int(16800/(8500/860*.85)*1100))
+        self.assertEqual(ns['weekly_winter_analysis'](**args)[1],int(28800/(8500/860*.85)*1100))
         args['climate_model']['winter_start_year']=2027
-        self.assertEqual(ns['weekly_winter_analysis'](**args)[1],int(16940/(8500/860*.85)*1100))
+        self.assertEqual(ns['weekly_winter_analysis'](**args)[1],int(29040/(8500/860*.85)*1100))
 
     def test_upload_declared_county_must_match(self):
         csv=b'region,datetime,temp_mean\nother,2024-01-01 00:00,1'

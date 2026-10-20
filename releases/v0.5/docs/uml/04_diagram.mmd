@@ -1,6 +1,6 @@
 flowchart TD
     entry["releases/v0.5/app.py"] --> core["동일 폴더의 original_app.py 동적 로딩"]
-    entry --> version["후속 버전 0.6.0 표시"]
+    entry --> version["후속 버전 0.6.1 표시"]
     entry --> config["새 서비스의 APP_PASSWORD 및 APP_URL"]
     core --> regress["CSV 검증 및 weekly_weather.py 주별 시간기온"]
     regress --> numpy["NumPy lstsq"]
