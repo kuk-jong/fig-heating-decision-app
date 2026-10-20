@@ -3,6 +3,7 @@ from io import BytesIO
 import math
 import os
 
+import altair as alt
 import numpy as np
 import pandas as pd
 import qrcode
@@ -1080,25 +1081,27 @@ def show_sensitivity_analysis(values: dict, region_info: dict) -> None:
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["목표온도", "연료단가", "보온등급", "기밀도", "방풍벽"])
 
-    with tab1:
-        st.line_chart(temp_df.set_index("시나리오")[["겨울 난방비(만원)", "겨울 순이익(만원)"]])
-        st.dataframe(temp_df, width="stretch", hide_index=True)
-
-    with tab2:
-        st.line_chart(fuel_df.set_index("시나리오")[["겨울 난방비(만원)", "겨울 순이익(만원)"]])
-        st.dataframe(fuel_df, width="stretch", hide_index=True)
-
-    with tab3:
-        st.bar_chart(insul_df.set_index("시나리오")[["겨울 난방비(만원)", "겨울 순이익(만원)"]])
-        st.dataframe(insul_df, width="stretch", hide_index=True)
-
-    with tab4:
-        st.bar_chart(airtight_df.set_index("시나리오")[["겨울 난방비(만원)", "겨울 순이익(만원)"]])
-        st.dataframe(airtight_df, width="stretch", hide_index=True)
-
-    with tab5:
-        st.bar_chart(side_wing_df.set_index("시나리오")[["겨울 난방비(만원)", "겨울 순이익(만원)"]])
-        st.dataframe(side_wing_df, width="stretch", hide_index=True)
+    money_columns = ["겨울 난방비(만원)", "겨울 순이익(만원)", "연간 순이익(만원)", "연료 단가(원)"]
+    money_format = {name: st.column_config.NumberColumn(format="%.0f") for name in money_columns}
+    for tab, frame, chart_kind in [
+        (tab1, temp_df, "line"), (tab2, fuel_df, "line"),
+        (tab3, insul_df, "bar"), (tab4, airtight_df, "bar"), (tab5, side_wing_df, "bar"),
+    ]:
+        with tab:
+            chart_data = frame.melt(
+                id_vars=["시나리오"], value_vars=["겨울 난방비(만원)", "겨울 순이익(만원)"],
+                var_name="항목", value_name="금액(만원)",
+            )
+            chart = alt.Chart(chart_data)
+            chart = chart.mark_line() if chart_kind == "line" else chart.mark_bar()
+            chart = chart.encode(
+                x=alt.X("시나리오:N", sort=None),
+                y=alt.Y("금액(만원):Q", axis=alt.Axis(format=",.0f", tickMinStep=1)),
+                color="항목:N",
+                tooltip=["시나리오:N", "항목:N", alt.Tooltip("금액(만원):Q", format=",.0f")],
+            )
+            st.altair_chart(chart, width="stretch")
+            st.dataframe(frame, width="stretch", hide_index=True, column_config=money_format)
 
 
 def show_references() -> None:
