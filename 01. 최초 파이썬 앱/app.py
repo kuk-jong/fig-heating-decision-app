@@ -357,125 +357,40 @@ def comma_int_input(label: str, value: int, key: str, help: str | None = None) -
     return int(digits)
 
 
-ANNUAL_PERIOD = 365.2425
-ANGULAR_FREQUENCY = 2 * np.pi / ANNUAL_PERIOD
-
-
-def climate_day(date) -> float:
-    """Zero-based annual coordinate; scale leap years to the same annual period."""
-    date = pd.Timestamp(date)
-    return (date.dayofyear - 1) * ANNUAL_PERIOD / (366 if date.is_leap_year else 365)
-
-
-def simulated_min_temp(model: dict, date) -> float:
-    return float(model["A"] + model["B"] * np.sin(model["C"] * climate_day(date) + model["D"]))
-
-
-def fit_climate_curve(dates, temperatures) -> dict:
-    """Fit intercept/sine/cosine by OLS, then express as A+B*sin(C*x+D)."""
-    x = np.array([climate_day(date) for date in dates], dtype=float)
-    y = np.asarray(temperatures, dtype=float)
-    if len(x) < 3 or not np.isfinite(y).all():
-        raise ValueError("유효한 관측일이 3일 이상 필요하며 기온은 유한한 수여야 합니다.")
-    unique_x = np.unique(x)
-    gaps = np.diff(np.r_[unique_x, unique_x[0] + ANNUAL_PERIOD])
-    span = ANNUAL_PERIOD - float(gaps.max())
-    if len(unique_x) < 3 or span < 60:
-        raise ValueError("계절 변화 추정을 위해 서로 다른 관측일 3일 이상, 계절 범위 60일 이상의 자료가 필요합니다.")
-    design = np.column_stack([np.ones(len(x)), np.sin(ANGULAR_FREQUENCY * x), np.cos(ANGULAR_FREQUENCY * x)])
-    coeff, _, rank, _ = np.linalg.lstsq(design, y, rcond=None)
-    if rank < 3 or np.linalg.cond(design) > 1e6:
-        raise ValueError("관측일 분포가 부족해 기온곡선 계수를 안정적으로 추정할 수 없습니다.")
-    center, sine, cosine = map(float, coeff)
-    amplitude = float(np.hypot(sine, cosine))
-    phase = float(np.arctan2(cosine, sine)) if amplitude > 1e-10 else 0.0
-    if amplitude <= 1e-10:
-        amplitude = 0.0
-    predicted = design @ coeff
-    residual = y - predicted
-    sst = float(np.sum((y - y.mean()) ** 2))
-    return {"A": center, "B": amplitude, "C": float(ANGULAR_FREQUENCY), "D": phase,
-            "rmse": float(np.sqrt(np.mean(residual ** 2))),
-            "r_squared": float(1 - np.sum(residual ** 2) / sst) if sst > 1e-12 else None,
-            "observed_mean": float(y.mean()), "fitted_mean": float(predicted.mean()),
-            "span_days": span}
-
-
-def default_climate_model(region_info: dict) -> dict:
-    """Migrate legacy assumptions, never describe these synthetic points as observations."""
-    if "A" in region_info:
-        return region_info
-    dates = pd.date_range(WINTER_START, WINTER_END)
-    legacy = region_info["base"] - region_info["amp"] * np.sin(np.pi * np.arange(len(dates)) / len(dates))
-    model = fit_climate_curve(dates, legacy)
-    model["source"] = "legacy_assumptions"
-    return model
+def simulated_min_temp(base_t: float, amp_t: float, day_idx: int, days_total: int) -> float:
+    return base_t - (amp_t * np.sin(np.pi * day_idx / days_total))
 
 
 def climate_params_from_csv(uploaded_file, region_name: str) -> tuple[dict | None, str | None]:
     if uploaded_file is None:
         return None, None
+
+    required_columns = {"region", "date", "min_temp"}
     try:
-        if hasattr(uploaded_file, "seek"):
-            uploaded_file.seek(0)
         climate_df = pd.read_csv(uploaded_file)
     except Exception as exc:
         return None, f"CSV 파일을 읽지 못했습니다: {exc}"
-    missing = {"region", "date", "min_temp"} - set(climate_df.columns)
-    if missing:
-        return None, f"CSV 필수 컬럼이 없습니다: {', '.join(sorted(missing))}"
-    region_df = climate_df[climate_df["region"].astype(str).str.strip() == region_name.strip()].copy()
+
+    missing_columns = required_columns - set(climate_df.columns)
+    if missing_columns:
+        missing_text = ", ".join(sorted(missing_columns))
+        return None, f"CSV 필수 컬럼이 없습니다: {missing_text}"
+
+    climate_df["date"] = pd.to_datetime(climate_df["date"], errors="coerce")
+    climate_df["min_temp"] = pd.to_numeric(climate_df["min_temp"], errors="coerce")
+    climate_df = climate_df.dropna(subset=["date", "min_temp"])
+    climate_df = climate_df[climate_df["date"].dt.month.isin(WINTER_MONTHS)]
+
+    region_df = climate_df[climate_df["region"] == region_name]
     if region_df.empty:
-        return None, f"CSV에서 선택 지역 '{region_name}'의 자료를 찾지 못했습니다."
-    try:
-        region_df["date"] = pd.to_datetime(region_df["date"], errors="coerce")
-        region_df["date"] = region_df["date"].dt.normalize()
-    except (ValueError, AttributeError):
-        return None, "CSV 날짜는 시간대가 없는 YYYY-MM-DD 형식으로 입력하세요."
-    region_df["min_temp"] = pd.to_numeric(region_df["min_temp"], errors="coerce")
-    valid = region_df["date"].notna() & np.isfinite(region_df["min_temp"])
-    dropped = int((~valid).sum())
-    region_df = region_df.loc[valid]
-    daily = region_df.groupby("date", as_index=False)["min_temp"].mean()
-    try:
-        model = fit_climate_curve(daily["date"], daily["min_temp"])
-    except ValueError as exc:
-        return None, str(exc)
-    model.update({"source": "csv_regression", "years": int(daily["date"].dt.year.nunique()),
-                  "rows": len(daily), "dropped_rows": dropped,
-                  "duplicate_rows": int(len(region_df) - len(daily)),
-                  "months": int(daily["date"].dt.month.nunique()), "observations": daily})
-    return model, None
+        return None, f"CSV에서 선택 지역 '{region_name}'의 겨울철 자료를 찾지 못했습니다."
 
+    monthly_min = region_df.groupby(region_df["date"].dt.month)["min_temp"].mean()
+    base_t = float(monthly_min.mean())
+    amp_t = float(max((monthly_min.max() - monthly_min.min()) / 2, 0.1))
+    years = region_df["date"].dt.year.nunique()
 
-def show_climate_model(model: dict) -> None:
-    with st.expander("외기온 추정식 · 회귀 결과", expanded=True):
-        st.latex(r"T(x)=A+B\sin(Cx+D)")
-        st.write(f"A = {model['A']:.4f} ℃, B = {model['B']:.4f} ℃, "
-                 f"C = {model['C']:.8f} rad/일, D = {model['D']:.4f} rad")
-        st.caption("주기 365.2425일 고정. x는 1월 1일부터의 연중 위치이며 윤년 길이를 보정합니다. "
-                   "A는 연간 곡선의 중심온도이며 겨울 평균온도와 다릅니다.")
-        if model.get("source") == "csv_regression":
-            st.write(f"관측일 {model['rows']:,}일 · 적합 RMSE {model['rmse']:.3f} ℃")
-            if model["r_squared"] is not None:
-                st.caption(f"적합 R² = {model['r_squared']:.3f} (학습자료 기준이며 예측 정확도 검증값이 아닙니다.)")
-            st.caption(f"관측 평균 {model['observed_mean']:.3f} ℃ / 같은 관측일의 적합 평균 {model['fitted_mean']:.3f} ℃")
-            if model["dropped_rows"] or model["duplicate_rows"]:
-                st.caption(f"유효하지 않은 행 {model['dropped_rows']}개 제외, 같은 날짜 중복 {model['duplicate_rows']}개는 일평균으로 통합했습니다.")
-            if model["months"] < 12 or model["rows"] < 30:
-                st.warning("계절 또는 관측일이 제한된 자료입니다. 연간 중심온도·진폭 추정이 불안정할 수 있으므로 여러 해의 연중 일별 자료를 권장합니다.")
-        else:
-            st.warning("관측자료 미적용: 기존 내장 가정곡선을 연간 사인식으로 근사한 값입니다. 관측 회귀 결과가 아니며, 실제 자료 CSV를 업로드해야 지역 기후를 반영합니다.")
-        dates = pd.date_range(WINTER_START, WINTER_END)
-        chart = pd.DataFrame({"날짜": dates, "추정 일최저기온(℃)": [simulated_min_temp(model, d) for d in dates]})
-        st.line_chart(chart.set_index("날짜"))
-        if model.get("source") == "csv_regression":
-            observations = model["observations"].copy()
-            observations["회귀 일최저기온(℃)"] = [simulated_min_temp(model, d) for d in observations["date"]]
-            observations = observations.rename(columns={"date": "날짜", "min_temp": "관측 일최저기온(℃)"})
-            st.line_chart(observations.set_index("날짜"))
-        st.caption("일최저기온의 계절적 추정곡선으로, 특정 날짜의 실제 날씨나 예보가 아닙니다. "
-                   "일최저기온을 가온시간 14시간의 외기로 사용하는 기존 가정은 유지됩니다.")
+    return {"base": base_t, "amp": amp_t, "years": int(years), "rows": int(len(region_df))}, None
 
 
 def winter_analysis(
@@ -484,7 +399,8 @@ def winter_analysis(
     target_temp: float,
     unit_fuel_cost: float,
     energy_source: str,
-    climate_model: dict,
+    region_base: float,
+    region_amp: float,
     winter_total_yield: float,
     market_price: float,
     airtightness_factor: float,
@@ -500,8 +416,8 @@ def winter_analysis(
     total_heating_hours = 0.0
     peak_energy_kw = 0.0
 
-    for date in dates:
-        min_temp = simulated_min_temp(climate_model, date)
+    for day_idx, date in enumerate(dates):
+        min_temp = simulated_min_temp(region_base, region_amp, day_idx, days_total)
         delta_t = max(target_temp - min_temp, 0)
         heating_hours = 14 if delta_t > 0 else 0
         daily_load = surface_area * u_val * delta_t * heating_hours * airtightness_factor * side_wing_factor_value
@@ -552,7 +468,8 @@ def calculate_profit_summary(values: dict, region_info: dict) -> dict:
             target_temp=values["target_temp"],
             unit_fuel_cost=values["unit_fuel_cost"],
             energy_source=values["energy_source"],
-            climate_model=default_climate_model(region_info),
+            region_base=region_info["base"],
+            region_amp=region_info["amp"],
             winter_total_yield=values["winter_total_yield"],
             market_price=values["market_price"],
             airtightness_factor=AIR_TIGHTNESS_LEVELS[values["airtightness_level"]],
@@ -849,11 +766,11 @@ def collect_inputs() -> tuple[bool, dict]:
 
         with st.expander("5. 기상 CSV 자료(선택)", expanded=False):
             climate_file = st.file_uploader(
-                "지역별 일최저기온 CSV 업로드",
+                "10년치 지역별 기상 CSV 업로드",
                 type=["csv"],
-                help="필수 컬럼: region, date, min_temp. 여러 해의 연중 일별 자료 권장. 날짜는 YYYY-MM-DD.",
+                help="필수 컬럼: region, date, min_temp",
             )
-            st.caption("미업로드 시 기존 내장 가정곡선의 연간 사인식 근사값을 사용합니다(관측자료 아님).")
+            st.caption("업로드하지 않으면 앱 내장 간이 지역 파라미터를 사용합니다.")
 
         st.write("---")
         st.markdown("**📱 모바일로 접속하기(선택)**")
@@ -907,16 +824,14 @@ def collect_inputs() -> tuple[bool, dict]:
 
 def show_results(values: dict) -> None:
     values = normalize_inputs(values)
-    region_info = default_climate_model(REGION_DATA[values["region_name"]])
+    region_info = REGION_DATA[values["region_name"]]
     csv_region_info, climate_error = climate_params_from_csv(values.get("climate_file"), values["region_name"])
-    climate_source = "내장 가정곡선의 연간 사인식 근사(관측자료 아님)"
+    climate_source = "내장 간이 파라미터"
     if csv_region_info:
-        region_info = csv_region_info
+        region_info = {"base": csv_region_info["base"], "amp": csv_region_info["amp"]}
         climate_source = f"업로드 CSV 기반({csv_region_info['years']}개년, {csv_region_info['rows']:,}행)"
     elif climate_error:
-        st.error(f"기상 CSV를 적용하지 못했습니다: {climate_error}")
-        st.info("CSV를 수정하거나 업로드를 해제한 후 다시 분석하세요. 잘못된 CSV를 내장값으로 대체하지 않습니다.")
-        return
+        st.warning(climate_error)
 
     summary = calculate_profit_summary(values, region_info)
 
@@ -932,7 +847,6 @@ def show_results(values: dict) -> None:
 
     st.header(f"📊 연간 경영 분석 리포트 ({values['region_name']})")
     st.caption(f"기상자료 기준: {climate_source}")
-    show_climate_model(region_info)
 
     st.subheader("🏠 온실/모델 요약")
     c1, c2 = st.columns(2)
@@ -1081,10 +995,8 @@ def show_references() -> None:
         st.markdown(
             """
 ### 1. 기상 데이터
-- 외기온 추정식은 `T(x) = A + B sin(Cx + D)`이며 연간 주기 365.2425일(C 고정)을 사용합니다.
-- CSV의 선택 지역 전체 일별 자료에 절편·사인·코사인 최소제곱 회귀를 적용하여 A·B·D를 추정합니다. 월별 평균이나 범위의 절반을 계수로 사용하지 않습니다.
-- `region`, `date`, `min_temp` 컬럼이 필요하며 여러 해의 연중 자료를 권장합니다. 제한된 계절 자료는 추정 불확실성이 큽니다.
-- 기존 지역별 `base`, `amp`는 내장 가정곡선을 연간 사인식으로 근사하는 데만 사용하며 관측자료로 간주하지 않습니다.
+- 현재 버전의 지역별 `base`, `amp` 값은 의사결정 비교용 간이 파라미터입니다.
+- 선택적으로 `region`, `date`, `min_temp` 컬럼을 가진 CSV를 업로드하면 해당 지역의 겨울철 자료에서 기상 파라미터를 추정합니다.
 - 다음 단계에서는 10년치 시간별 기온 자료를 연결해 지역별, 월별, 시간대별 보정계수로 교체하는 것이 좋습니다.
 
 ### 2. 난방부하 산출 구조

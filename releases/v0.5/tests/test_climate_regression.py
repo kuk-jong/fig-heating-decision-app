@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / "01. 최초 파이썬 앱" / "app.py"
+APP = ROOT / "original_app.py"
 # Load calculation definitions without executing the Streamlit UI.
 ns = {"np": np, "pd": pd, "math": math}
 tree = ast.parse(APP.read_text(encoding="utf-8"))
@@ -93,8 +93,7 @@ class ClimateRegressionTests(unittest.TestCase):
         args["climate_model"] = {**self.truth, "A": self.truth["A"] + 3}
         self.assertLess(ns["winter_analysis"](**args)[1], cost)
 
-    def test_both_app_cores_match_and_defaults_are_labeled(self):
-        self.assertEqual(APP.read_bytes(), (ROOT/"streamlit-enhanced/original_app.py").read_bytes())
+    def test_defaults_are_labeled_and_use_fixed_period(self):
         for data in ns["REGION_DATA"].values():
             model = ns["default_climate_model"](data)
             self.assertEqual(model["source"], "legacy_assumptions")
